@@ -1,11 +1,12 @@
 package com.mudgame.server.core;
 
-import com.mudgame.entities.GameMap;
-import com.mudgame.entities.Player;
+import com.mudgame.entities.*;
 import com.mudgame.server.commands.DefaultCommandRegistry;
-
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class GameState {
     private final GameMap gameMap;
@@ -15,38 +16,145 @@ public class GameState {
 
     public GameState(int maxPlayers) {
         this.maxPlayers = maxPlayers;
-        this.gameMap = GameMap.createTestMap();
         this.players = new ConcurrentHashMap<>();
+        this.gameMap = GameMap.createTestMap();
     }
 
-    public Player joinGame(String playerName) {
-        if (players.size() >= maxPlayers) {
-            throw new IllegalStateException("Game is full");
-        }
-
-        Player player = new Player(playerName);
-        player.setCurrentRoom(gameMap.getStartingRoom());
-        gameMap.getStartingRoom().addPlayer(player);
-        players.put(player.getId(), player);
-
-        return player;
-    }
-
-    public void leaveGame(String playerId) {
-        Player player = players.remove(playerId);
-        if (player != null && player.getCurrentRoom() != null) {
-            player.getCurrentRoom().removePlayer(player);
-        }
-    }
-
+    // Player Management Methods
     public Player getPlayer(String playerId) {
         return players.get(playerId);
     }
 
+    public List<Player> getAllPlayers() {
+        return new ArrayList<>(players.values());
+    }
+
+    public List<Player> getOnlinePlayers() {
+        return players.values().stream()
+                .filter(Player::isOnline)
+                .collect(Collectors.toList());
+    }
+
+    public List<Player> getPlayersByOwnerId(String ownerId) {
+        return players.values().stream()
+                .filter(player -> player.getOwnerId().equals(ownerId))
+                .collect(Collectors.toList());
+    }
+
+    public int getPlayerCount() {
+        return players.size();
+    }
+
+    public int getOnlinePlayerCount() {
+        return (int) players.values().stream()
+                .filter(Player::isOnline)
+                .count();
+    }
+
+    public boolean isPlayerOnline(String playerId) {
+        Player player = players.get(playerId);
+        return player != null && player.isOnline();
+    }
+
+    // Character Creation and Management
+    public Player createCharacter(String ownerId, String firstName, String lastName,
+                                  Race race, CharacterClass characterClass, Map<Attributes, Integer> attributes) {
+        Player newPlayer = new Player(ownerId, firstName, lastName, race, characterClass);
+        players.put(newPlayer.getId(), newPlayer);
+        return newPlayer;
+    }
+
+    public void addPlayer(Player player) {
+        players.put(player.getId(), player);
+    }
+
+    public void removePlayer(String playerId) {
+        Player player = players.get(playerId);
+        if (player != null) {
+            if (player.getCurrentRoom() != null) {
+                player.getCurrentRoom().removePlayer(player);
+            }
+            players.remove(playerId);
+        }
+    }
+
+    // Game Session Management
+    public Player loadPlayer(String playerId) {
+        Player player = players.get(playerId);
+        if (player != null) {
+            // Load the actual Room object based on stored roomId
+            String roomId = player.getCurrentRoomId();
+            Room room = roomId != null ? gameMap.getRoom(roomId) : gameMap.getStartingRoom();
+
+            // Update player's current room
+            player.setCurrentRoom(room);
+            if (room != null) {
+                room.addPlayer(player);
+            }
+
+            // Mark player as online
+            player.setOnline(true);
+        }
+        return player;
+    }
+
+    public void unloadPlayer(String playerId) {
+        Player player = players.get(playerId);
+        if (player != null) {
+            // Remove player from current room
+            Room currentRoom = player.getCurrentRoom();
+            if (currentRoom != null) {
+                currentRoom.removePlayer(player);
+            }
+
+            // Mark player as offline but keep in players map
+            player.setOnline(false);
+        }
+    }
+
+    public Player joinGame(String userId, String playerId) {
+        // Ensure playerId is treated as a String
+        Player player = players.get(playerId);
+        if (player == null) {
+            throw new IllegalStateException("Character not found");
+        }
+
+        if (!player.getOwnerId().equals(userId)) {
+            throw new IllegalStateException("Not authorized to use this character");
+        }
+
+        return loadPlayer(playerId);
+    }
+
+
+    public void leaveGame(String playerId) {
+        unloadPlayer(playerId);
+    }
+
+    // Movement and Room Management
+    public boolean movePlayer(String playerId, Direction direction) {
+        Player player = players.get(playerId);
+        if (player != null && player.isOnline()) {
+            Room currentRoom = player.getCurrentRoom();
+            if (currentRoom != null) {
+                Room nextRoom = currentRoom.getExit(direction);
+                if (nextRoom != null) {
+                    currentRoom.removePlayer(player);
+                    nextRoom.addPlayer(player);
+                    player.setCurrentRoom(nextRoom);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Map Access
     public GameMap getGameMap() {
         return gameMap;
     }
 
+    // Command Registry Management
     public void setCommandRegistry(DefaultCommandRegistry commandRegistry) {
         this.commandRegistry = commandRegistry;
     }
@@ -55,11 +163,45 @@ public class GameState {
         return commandRegistry;
     }
 
-    public int getPlayerCount() {
-        return players.size();
+    // Game State Validation
+    public boolean validateGameState() {
+        // Ensure all online players are in a room
+        boolean valid = true;
+        for (Player player : getOnlinePlayers()) {
+            if (player.getCurrentRoom() == null) {
+                valid = false;
+                // Attempt to fix by placing in starting room
+                Room startingRoom = gameMap.getStartingRoom();
+                player.setCurrentRoom(startingRoom);
+                startingRoom.addPlayer(player);
+            }
+        }
+        return valid;
     }
 
-    public boolean isPlayerOnline(String playerId) {
-        return players.containsKey(playerId);
+    // Utility Methods
+    public void broadcastToRoom(Room room, String message) {
+        if (room != null) {
+            for (Player player : room.getPlayers()) {
+                // Here you would typically send the message to the player's client
+                // Implementation depends on your networking setup
+            }
+        }
+    }
+
+    public void broadcastToAll(String message) {
+        for (Player player : getOnlinePlayers()) {
+            // Here you would typically send the message to the player's client
+            // Implementation depends on your networking setup
+        }
+    }
+
+    public void cleanup() {
+        // Clean up any resources, save state, etc.
+        for (Player player : players.values()) {
+            if (player.isOnline()) {
+                unloadPlayer(player.getId());
+            }
+        }
     }
 }

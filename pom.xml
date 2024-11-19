@@ -39,6 +39,11 @@
                 <artifactId>mud-entities</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.webjars.npm</groupId>
+                <artifactId>supabase__postgrest-js</artifactId>
+                <version>0.33.3</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

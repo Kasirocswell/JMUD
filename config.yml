@@ -1,5 +1,5 @@
 gameName: Simple MUD
-maxPlayers: 100
+maxPlayers: 10000
 debugMode: true
 
 server:

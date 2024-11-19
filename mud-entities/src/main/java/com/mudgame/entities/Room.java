@@ -106,7 +106,7 @@ public class Room {
             sb.append("Players here: ");
             sb.append(String.join(", ",
                     players.stream()
-                            .map(Player::getName)
+                            .map(Player::getFullName)
                             .toArray(String[]::new)));
         }
 

@@ -43,7 +43,7 @@ public interface MoveCommand extends GameCommand {
             return CommandResult.builder()
                     .success(true)
                     .privateMessage(destinationRoom.getFullDescription())
-                    .roomMessage(player.getName() + " has left to the " + direction.name().toLowerCase() + ".")
+                    .roomMessage(player.getFullName() + " has left to the " + direction.name().toLowerCase() + ".")
                     .build();
 
         } catch (IllegalArgumentException e) {
