@@ -18,6 +18,8 @@ public class GameState {
         this.maxPlayers = maxPlayers;
         this.players = new ConcurrentHashMap<>();
         this.gameMap = GameMap.createTestMap();
+        System.out.println("Game world initialized with " + gameMap.getAllRooms().size() + " rooms");
+        System.out.println("Starting room: " + gameMap.getStartingRoom().getName());
     }
 
     // Player Management Methods
@@ -82,18 +84,26 @@ public class GameState {
     public Player loadPlayer(String playerId) {
         Player player = players.get(playerId);
         if (player != null) {
-            // Load the actual Room object based on stored roomId
+            Room room;
+
+            // If player has a current room, try to load it
             String roomId = player.getCurrentRoomId();
-            Room room = roomId != null ? gameMap.getRoom(roomId) : gameMap.getStartingRoom();
+            if (roomId != null) {
+                room = gameMap.getRoom(roomId);
+            } else {
+                // If no room is set or room doesn't exist, start at spaceport
+                room = gameMap.getStartingRoom();
+                System.out.println("Placing new player in starting room: " + room.getName());
+            }
 
             // Update player's current room
             player.setCurrentRoom(room);
-            if (room != null) {
-                room.addPlayer(player);
-            }
+            room.addPlayer(player);
 
             // Mark player as online
             player.setOnline(true);
+
+            System.out.println("Player " + player.getFullName() + " loaded into " + room.getName());
         }
         return player;
     }

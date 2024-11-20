@@ -2,8 +2,8 @@ package com.mudgame.entities;
 
 public enum Race {
     HUMAN,
-    ELF,
-    DWARF,
-    ORC,
+    DRACONIAN,
+    SYNTH,
+    CONSTRUCT,
     ANDROID
 }

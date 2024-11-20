@@ -1,5 +1,6 @@
 package com.mudgame.entities;
 
+import com.mudgame.entities.maps.WorldMapBuilder;
 import java.util.*;
 
 public class GameMap {
@@ -104,33 +105,16 @@ public class GameMap {
         return path;
     }
 
-    // Factory method to create a simple test map
+    // Factory method to create the game world
     public static GameMap createTestMap() {
-        GameMap map = new GameMap();
+        return new WorldMapBuilder().buildWorld();
+    }
 
-        // Create some rooms
-        Room startRoom = new Room("Starting Room", "A well-lit room with stone walls.");
-        Room northRoom = new Room("Northern Room", "A cold room with an icy floor.");
-        Room eastRoom = new Room("Eastern Room", "A garden room filled with plants.");
-        Room southRoom = new Room("Southern Room", "A warm room with a fireplace.");
-        Room westRoom = new Room("Western Room", "A dark room with mysterious shadows.");
-
-        // Add all rooms to the map
-        map.addRoom(startRoom);
-        map.addRoom(northRoom);
-        map.addRoom(eastRoom);
-        map.addRoom(southRoom);
-        map.addRoom(westRoom);
-
-        // Set the starting room
-        map.setStartingRoom(startRoom);
-
-        // Connect rooms bidirectionally
-        map.connectRooms(startRoom, Direction.NORTH, northRoom, true);
-        map.connectRooms(startRoom, Direction.EAST, eastRoom, true);
-        map.connectRooms(startRoom, Direction.SOUTH, southRoom, true);
-        map.connectRooms(startRoom, Direction.WEST, westRoom, true);
-
-        return map;
+    // Helper method to get room by name (useful for debugging and testing)
+    public Room getRoomByName(String name) {
+        return rooms.values().stream()
+                .filter(room -> room.getName().equals(name))
+                .findFirst()
+                .orElse(null);
     }
 }

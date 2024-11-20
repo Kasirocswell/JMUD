@@ -24,4 +24,16 @@ public class GameConfiguration extends Configuration {
     public boolean isDebugMode() {
         return debugMode;
     }
+
+    public void setGameName(String gameName) {
+        this.gameName = gameName;
+    }
+
+    public void setMaxPlayers(int maxPlayers) {
+        this.maxPlayers = maxPlayers;
+    }
+
+    public void setDebugMode(boolean debugMode) {
+        this.debugMode = debugMode;
+    }
 }
