@@ -1,8 +1,25 @@
 package com.mudgame.server.commands;
 
-import com.mudgame.api.commands.*;
+
+import com.mudgame.api.commands.CommandRegistry;
+import com.mudgame.api.commands.CommandResult;
+import com.mudgame.api.commands.DropCommand;
+import com.mudgame.api.commands.EquipCommand;
+import com.mudgame.api.commands.EquipmentCommand;
+import com.mudgame.api.commands.ExamineCommand;
+import com.mudgame.api.commands.GameCommand;
+import com.mudgame.api.commands.GetCommand;
+import com.mudgame.api.commands.InventoryCommand;
+import com.mudgame.api.commands.LookCommand;
+import com.mudgame.api.commands.MoveCommand;
+import com.mudgame.api.commands.SayCommand;
+import com.mudgame.api.commands.UnequipCommand;
 import com.mudgame.entities.Player;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultCommandRegistry implements CommandRegistry {
@@ -22,6 +39,15 @@ public class DefaultCommandRegistry implements CommandRegistry {
 
         // Register say command
         registerCommand(new SayCommand() {});
+
+        // Register inventory commands
+        registerCommand(new InventoryCommand() {});
+        registerCommand(new EquipmentCommand() {});
+        registerCommand(new GetCommand() {});
+        registerCommand(new DropCommand() {});
+        registerCommand(new EquipCommand() {});
+        registerCommand(new UnequipCommand() {});
+        registerCommand(new ExamineCommand() {});
 
         // Register help command
         registerCommand(new GameCommand() {

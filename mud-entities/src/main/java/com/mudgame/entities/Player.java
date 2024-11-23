@@ -1,19 +1,18 @@
 package com.mudgame.entities;
 
+import java.util.Optional;
 import java.util.UUID;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Player {
-    private final String id;
-    private final String ownerId;
+    private final UUID id;
+    private final UUID ownerId;
     private String firstName;
     private String lastName;
     private Race race;
     private CharacterClass characterClass;
-    private JsonNode inventory;
-    private JsonNode equipment;
     private int credits;
     private String currentRoomId;
     @JsonIgnore
@@ -25,15 +24,19 @@ public class Player {
     private int maxEnergy;
     private boolean isOnline;
     private long lastSeen;
+    private Inventory inventory;
+    private Equipment equipment;
 
     // Constructor for new character creation
     public Player(
-            @JsonProperty("ownerId") String ownerId,
+            @JsonProperty("ownerId") UUID ownerId,
             @JsonProperty("firstName") String firstName,
             @JsonProperty("lastName") String lastName,
             @JsonProperty("race") Race race,
-            @JsonProperty("characterClass") CharacterClass characterClass) {
-        this.id = UUID.randomUUID().toString();
+            @JsonProperty("characterClass") CharacterClass characterClass, Inventory inventory, Equipment equipment) {
+        this.inventory = inventory;
+        this.equipment = equipment;
+        this.id = UUID.randomUUID();
         this.ownerId = ownerId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -47,18 +50,20 @@ public class Player {
         this.maxEnergy = 100;
         this.isOnline = false;
         this.lastSeen = System.currentTimeMillis();
+        this.inventory = new Inventory(100.0, 20); // Default 100kg, 20 slots
+        this.equipment = new Equipment(this);
     }
 
     // Constructor for loading existing character
     public Player(
-            @JsonProperty("id") String id,
-            @JsonProperty("ownerId") String ownerId,
+            @JsonProperty("id") UUID id,
+            @JsonProperty("ownerId") UUID ownerId,
             @JsonProperty("firstName") String firstName,
             @JsonProperty("lastName") String lastName,
             @JsonProperty("race") Race race,
             @JsonProperty("characterClass") CharacterClass characterClass,
-            @JsonProperty("inventory") JsonNode inventory,
-            @JsonProperty("equipment") JsonNode equipment,
+            @JsonProperty("inventory") Inventory inventory,
+            @JsonProperty("equipment") Equipment equipment,
             @JsonProperty("credits") int credits,
             @JsonProperty("currentRoomId") String currentRoomId,
             @JsonProperty("level") int level,
@@ -84,14 +89,16 @@ public class Player {
         this.maxEnergy = maxEnergy;
         this.isOnline = false;
         this.lastSeen = lastSeen;
+        this.inventory = inventory != null ? inventory : new Inventory(100.0, 20);
+        this.equipment = equipment != null ? equipment : new Equipment(this);
     }
 
     // Getters
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public String getOwnerId() {
+    public UUID getOwnerId() {
         return ownerId;
     }
 
@@ -113,14 +120,6 @@ public class Player {
 
     public CharacterClass getCharacterClass() {
         return characterClass;
-    }
-
-    public JsonNode getInventory() {
-        return inventory;
-    }
-
-    public JsonNode getEquipment() {
-        return equipment;
     }
 
     public int getCredits() {
@@ -175,11 +174,11 @@ public class Player {
         this.lastName = lastName;
     }
 
-    public void setInventory(JsonNode inventory) {
+    public void setInventory(Inventory inventory) {
         this.inventory = inventory;
     }
 
-    public void setEquipment(JsonNode equipment) {
+    public void setEquipment(Equipment equipment) {
         this.equipment = equipment;
     }
 
@@ -229,6 +228,55 @@ public class Player {
         if (!online) {
             this.lastSeen = System.currentTimeMillis();
         }
+    }
+
+    // Add inventory methods
+    public Inventory getInventory() {
+        return inventory;
+    }
+
+    public Equipment getEquipment() {
+        return equipment;
+    }
+
+    // Add helper methods for item management
+    public InventoryResult pickupItem(Item item) {
+        return inventory.addItem(item);
+    }
+
+    public InventoryResult dropItem(UUID itemId, int amount) {
+        return inventory.removeItem(itemId, amount);
+    }
+
+    public InventoryResult equipItem(Item item) {
+        // First check if we have the item in inventory
+        Optional<InventoryItem> invItem = inventory.getItem(item.getId());
+        if (invItem.isEmpty()) {
+            return InventoryResult.failure("You don't have that item");
+        }
+
+        // Try to equip the item
+        InventoryResult result = equipment.equipItem(item);
+        if (result.isSuccess()) {
+            // Remove from inventory if equipped successfully
+            inventory.removeItem(item.getId(), 1);
+        }
+        return result;
+    }
+
+    public InventoryResult unequipItem(EquipmentSlot slot) {
+        Optional<Item> equipped = equipment.getEquippedItem(slot);
+        if (equipped.isEmpty()) {
+            return InventoryResult.failure("Nothing equipped in that slot");
+        }
+
+        // Check if we have inventory space
+        InventoryResult canAdd = inventory.addItem(equipped.get());
+        if (!canAdd.isSuccess()) {
+            return InventoryResult.failure("Not enough inventory space to unequip");
+        }
+
+        return equipment.unequipItem(slot);
     }
 
     // Game-related methods

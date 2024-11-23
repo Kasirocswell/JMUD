@@ -36,6 +36,18 @@ public enum Direction {
         public Direction opposite() {
             return UP;
         }
+    },
+    ENTER("e") {
+        @Override
+        public Direction opposite() {
+            return EXIT;
+        }
+    },
+    EXIT("ex") {
+        @Override
+        public Direction opposite() {
+            return ENTER;
+        }
     };
 
     private final String shortCommand;

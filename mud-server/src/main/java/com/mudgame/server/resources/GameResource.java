@@ -2,13 +2,29 @@ package com.mudgame.server.resources;
 
 import com.mudgame.api.commands.CommandResult;
 import com.mudgame.api.commands.GameCommand;
-import com.mudgame.entities.*;
+import com.mudgame.entities.Attributes;
+import com.mudgame.entities.CharacterClass;
+import com.mudgame.entities.Player;
+import com.mudgame.entities.Race;
 import com.mudgame.server.core.GameState;
 
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.*;
+
+import java.util.Arrays;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 
 @Path("/game")
 @Produces(MediaType.APPLICATION_JSON)
@@ -22,7 +38,7 @@ public class GameResource {
     // Character Management Endpoints
     @GET
     @Path("/characters/{ownerId}")
-    public Response getCharacters(@PathParam("ownerId") String ownerId) {
+    public Response getCharacters(@PathParam("ownerId") UUID ownerId) {
         try {
             List<Player> characters = gameState.getPlayersByOwnerId(ownerId);
             return Response.ok(characters).build();
@@ -39,12 +55,13 @@ public class GameResource {
     public Response createCharacter(CreateCharacterRequest request) {
         try {
             Player player = gameState.createCharacter(
-                    request.ownerId,
-                    request.firstName,
-                    request.lastName,
-                    request.race,
-                    request.characterClass,
-                    request.attributes
+                    request.getId(),      // Pass the ID
+                    request.getOwnerId(),
+                    request.getFirstName(),
+                    request.getLastName(),
+                    request.getRace(),
+                    request.getCharacterClass(),
+                    request.getAttributes()
             );
             return Response.ok(player).build();
         } catch (Exception e) {
@@ -56,7 +73,7 @@ public class GameResource {
 
     @GET
     @Path("/characters/get/{characterId}")
-    public Response getCharacter(@PathParam("characterId") String characterId) {
+    public Response getCharacter(@PathParam("characterId") UUID characterId) {
         Player player = gameState.getPlayer(characterId);
         if (player != null) {
             return Response.ok(player).build();
@@ -128,7 +145,7 @@ public class GameResource {
 
     @DELETE
     @Path("/leave/{playerId}")
-    public Response leaveGame(@PathParam("playerId") String playerId) {
+    public Response leaveGame(@PathParam("playerId") UUID playerId) {
         try {
             gameState.leaveGame(playerId);
             return Response.ok().build();
@@ -174,7 +191,8 @@ public class GameResource {
 
     // Request/Response Classes
     public static class CreateCharacterRequest {
-        private String ownerId;
+        private UUID id;
+        private UUID ownerId;
         private String firstName;
         private String lastName;
         private Race race;
@@ -182,8 +200,10 @@ public class GameResource {
         private Map<Attributes, Integer> attributes;
 
         // Getters and setters
-        public String getOwnerId() { return ownerId; }
-        public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+        public UUID getId() { return id; }  // Added missing getId
+        public void setId(UUID id) { this.id = id; }  // Added missing setId
+        public UUID getOwnerId() { return ownerId; }
+        public void setOwnerId(UUID ownerId) { this.ownerId = ownerId; }
         public String getFirstName() { return firstName; }
         public void setFirstName(String firstName) { this.firstName = firstName; }
         public String getLastName() { return lastName; }
@@ -196,35 +216,36 @@ public class GameResource {
         public void setAttributes(Map<Attributes, Integer> attributes) { this.attributes = attributes; }
     }
 
-    public static class JoinRequest {
-        private String userId;
-        private String playerId;
 
-        public String getUserId() { return userId; }
-        public void setUserId(String userId) { this.userId = userId; }
-        public String getPlayerId() { return playerId; }
-        public void setPlayerId(String playerId) { this.playerId = playerId; }
+    public static class JoinRequest {
+        private UUID userId;    // Changed from String
+        private UUID playerId;  // Changed from String
+
+        public UUID getUserId() { return userId; }
+        public void setUserId(UUID userId) { this.userId = userId; }
+        public UUID getPlayerId() { return playerId; }
+        public void setPlayerId(UUID playerId) { this.playerId = playerId; }
     }
 
     public static class JoinResponse {
-        private final String playerId;
+        private final UUID playerId;  // Changed from String
         private final String message;
 
-        public JoinResponse(String playerId, String message) {
+        public JoinResponse(UUID playerId, String message) {
             this.playerId = playerId;
             this.message = message;
         }
 
-        public String getPlayerId() { return playerId; }
+        public UUID getPlayerId() { return playerId; }
         public String getMessage() { return message; }
     }
 
     public static class CommandRequest {
-        private String playerId;
+        private UUID playerId;  // Changed from String
         private String command;
 
-        public String getPlayerId() { return playerId; }
-        public void setPlayerId(String playerId) { this.playerId = playerId; }
+        public UUID getPlayerId() { return playerId; }
+        public void setPlayerId(UUID playerId) { this.playerId = playerId; }
         public String getCommand() { return command; }
         public void setCommand(String command) { this.command = command; }
     }

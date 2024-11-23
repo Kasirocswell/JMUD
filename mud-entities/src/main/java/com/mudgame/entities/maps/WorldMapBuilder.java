@@ -1,5 +1,6 @@
 package com.mudgame.entities.maps;
 
+import com.mudgame.entities.Direction;
 import com.mudgame.entities.GameMap;
 import com.mudgame.entities.Room;
 import com.mudgame.entities.maps.cities.NeoTokyoBuilder;
@@ -36,13 +37,16 @@ public class WorldMapBuilder {
         }
 
         // Create connections between areas
-        createInterAreaConnections(map);
+        createInterAreaConnections(map, spaceport);
 
         return map;
     }
 
-    private void createInterAreaConnections(GameMap map) {
-        // Add teleporters, space ships, or other connections between major areas
-        // Example: connect spaceport to each major area's entry point
+    private void createInterAreaConnections(GameMap map, Room spaceport) {
+        Room neoTokyoEntry = map.getRoomByName("Shibuya Crossing");
+        Room oldLondonEntry = map.getRoomByName("Big Ben Plaza");
+
+        map.connectRooms(spaceport, Direction.NORTH, neoTokyoEntry, false);
+        map.connectRooms(spaceport, Direction.SOUTH, oldLondonEntry, false);
     }
 }

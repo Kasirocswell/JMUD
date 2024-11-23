@@ -7,6 +7,7 @@ import com.mudgame.server.resources.GameResource;
 import com.mudgame.server.commands.DefaultCommandRegistry;
 import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Environment;
+import org.postgresql.ds.PGSimpleDataSource;
 
 public class GameApplication extends Application<GameConfiguration> {
     public static void main(String[] args) throws Exception {
@@ -15,8 +16,24 @@ public class GameApplication extends Application<GameConfiguration> {
 
     @Override
     public void run(GameConfiguration configuration, Environment environment) {
-        // Create game state
-        GameState gameState = new GameState(configuration.getMaxPlayers());
+        // Create DataSource for Supabase
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+
+        // Format: jdbc:postgresql://[host]:[port]/[database]
+        String jdbcUrl = "jdbc:postgresql://" +
+                "db.yilcjyoumyesbfqbjgpd.supabase.co:5432" +
+                "/postgres";
+
+        dataSource.setURL(jdbcUrl);
+        dataSource.setUser("postgres");  // Just "postgres", not the full reference
+        dataSource.setPassword(configuration.getDatabase().getPassword());
+
+        // Set additional properties
+        dataSource.setSsl(true);
+        dataSource.setSslMode("require");
+
+        // Create game state with DataSource
+        GameState gameState = new GameState(configuration.getMaxPlayers(), dataSource);
 
         // Register commands
         DefaultCommandRegistry commandRegistry = new DefaultCommandRegistry();

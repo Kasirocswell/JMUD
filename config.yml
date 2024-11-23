@@ -1,11 +1,14 @@
-gameName:  JMUD
+gameName: JMUD
 maxPlayers: 10000
 debugMode: true
+
+database:
+  password: "ns+yki96n69s"  # Your database password
 
 server:
   applicationConnectors:
     - type: http
-      port: 8080
+      port: 1030
   adminConnectors:
     - type: http
-      port: 8081
+      port: 1031
