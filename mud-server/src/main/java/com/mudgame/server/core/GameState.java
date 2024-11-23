@@ -73,35 +73,34 @@ public class GameState {
             Inventory inventory = new Inventory(100.0, 20);
             Equipment equipment = new Equipment(null);
 
-            // Create new player using the provided ID, matching the constructor exactly
+            // Create new player using the provided ID - IMPORTANT: Use the passed in ID
             Player newPlayer = new Player(
-                    id,                 // id
-                    ownerId,           // ownerId
-                    firstName,         // firstName
-                    lastName,          // lastName
-                    race,             // race
-                    characterClass,    // characterClass
-                    inventory,         // inventory
-                    equipment,         // equipment
-                    100,              // credits
-                    null,             // currentRoomId
-                    1,                // level
-                    100,              // health
-                    100,              // maxHealth
-                    100,              // energy
-                    100,              // maxEnergy
-                    System.currentTimeMillis()  // lastSeen
+                    id,                 // Use the ID passed in, don't generate new one
+                    ownerId,
+                    firstName,
+                    lastName,
+                    race,
+                    characterClass,
+                    inventory,
+                    equipment,
+                    100,
+                    null,
+                    1,
+                    100,
+                    100,
+                    100,
+                    100,
+                    System.currentTimeMillis()
             );
 
             // Add to players map FIRST
-            players.put(newPlayer.getId(), newPlayer);
+            players.put(id, newPlayer);  // Use the same ID here
 
             try {
-                // Give starter items (now the player will exist in the map)
+                // Give starter items AFTER the player is in the map
                 itemFactory.giveStarterItems(newPlayer);
             } catch (Exception e) {
-                // If item giving fails, remove from players map
-                players.remove(newPlayer.getId());
+                players.remove(id);  // Use same ID for cleanup
                 throw e;
             }
 

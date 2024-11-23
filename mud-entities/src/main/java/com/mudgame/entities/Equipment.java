@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public class Equipment {
     private final Map<EquipmentSlot, Item> equipped;
-    private final Player owner;
+    private Player owner;
 
     public Equipment(Player owner) {
         this.owner = owner;
@@ -58,5 +58,9 @@ public class Equipment {
         }
 
         return sb.toString();
+    }
+
+    public void setOwner(Player owner) {
+        this.owner = owner;
     }
 }

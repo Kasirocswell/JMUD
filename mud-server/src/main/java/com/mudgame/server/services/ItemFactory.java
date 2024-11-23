@@ -221,13 +221,14 @@ public class ItemFactory {
              )) {
 
             System.out.println("Giving starter items to player: " + player.getId());
+            stmt.setObject(1, player.getId());  // Make sure we're using the same ID
 
-            stmt.setObject(1, player.getId());
-            stmt.execute();  // This will add items to the existing character
+            // Log the SQL that would be executed
+            System.out.println("Executing SQL with player ID: " + player.getId());
 
-            System.out.println("Successfully executed give_starter_items function");
+            stmt.execute();
 
-            // Reload the player's inventory and equipment
+            // Load inventory and equipment
             try {
                 Inventory newInventory = loadPlayerInventory(player);
                 System.out.println("Loaded inventory with " + newInventory.getUsedSlots() + " items");

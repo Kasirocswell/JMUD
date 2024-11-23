@@ -33,9 +33,9 @@ public class Player {
             @JsonProperty("firstName") String firstName,
             @JsonProperty("lastName") String lastName,
             @JsonProperty("race") Race race,
-            @JsonProperty("characterClass") CharacterClass characterClass, Inventory inventory, Equipment equipment) {
-        this.inventory = inventory;
-        this.equipment = equipment;
+            @JsonProperty("characterClass") CharacterClass characterClass,
+            Inventory inventory,
+            Equipment equipment) {
         this.id = UUID.randomUUID();
         this.ownerId = ownerId;
         this.firstName = firstName;
@@ -50,13 +50,14 @@ public class Player {
         this.maxEnergy = 100;
         this.isOnline = false;
         this.lastSeen = System.currentTimeMillis();
-        this.inventory = new Inventory(100.0, 20); // Default 100kg, 20 slots
-        this.equipment = new Equipment(this);
+        this.inventory = inventory;  // Use the passed in inventory
+        this.equipment = equipment;  // Use the passed in equipment
     }
 
     // Constructor for loading existing character
+    // Constructor for loading existing character
     public Player(
-            @JsonProperty("id") UUID id,
+            @JsonProperty("id") UUID id,  // Accept the ID parameter
             @JsonProperty("ownerId") UUID ownerId,
             @JsonProperty("firstName") String firstName,
             @JsonProperty("lastName") String lastName,
@@ -72,14 +73,12 @@ public class Player {
             @JsonProperty("energy") int energy,
             @JsonProperty("maxEnergy") int maxEnergy,
             @JsonProperty("lastSeen") long lastSeen) {
-        this.id = id;
+        this.id = id;  // Use the provided ID
         this.ownerId = ownerId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.race = race;
         this.characterClass = characterClass;
-        this.inventory = inventory;
-        this.equipment = equipment;
         this.credits = credits;
         this.currentRoomId = currentRoomId;
         this.level = level;
