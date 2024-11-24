@@ -2,6 +2,7 @@ package com.mudgame.server;
 
 import com.mudgame.server.config.GameConfiguration;
 import com.mudgame.server.core.GameState;
+import com.mudgame.server.core.GameManager;
 import com.mudgame.server.health.GameHealthCheck;
 import com.mudgame.server.resources.GameResource;
 import com.mudgame.server.commands.DefaultCommandRegistry;
@@ -25,7 +26,7 @@ public class GameApplication extends Application<GameConfiguration> {
                 "/postgres";
 
         dataSource.setURL(jdbcUrl);
-        dataSource.setUser("postgres");  // Just "postgres", not the full reference
+        dataSource.setUser("postgres");
         dataSource.setPassword(configuration.getDatabase().getPassword());
 
         // Set additional properties
@@ -34,6 +35,10 @@ public class GameApplication extends Application<GameConfiguration> {
 
         // Create game state with DataSource
         GameState gameState = new GameState(configuration.getMaxPlayers(), dataSource);
+
+        // Create and register game manager
+        GameManager gameManager = new GameManager(gameState);
+        environment.lifecycle().manage(gameManager);
 
         // Register commands
         DefaultCommandRegistry commandRegistry = new DefaultCommandRegistry();

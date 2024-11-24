@@ -3,9 +3,11 @@ package com.mudgame.server.core;
 import com.mudgame.entities.*;
 import com.mudgame.server.commands.DefaultCommandRegistry;
 import com.mudgame.server.services.ItemFactory;
+import com.mudgame.server.services.NPCSpawner;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -17,6 +19,9 @@ public class GameState {
     private DefaultCommandRegistry commandRegistry;
     private final ItemFactory itemFactory;
     private final DataSource dataSource;
+    private final NPCSpawner npcSpawner;
+    private long lastNPCTick = System.currentTimeMillis();
+    private static final long NPC_TICK_INTERVAL = 1000; // 1 second tick rate
 
     public GameState(int maxPlayers, DataSource dataSource) {
         this.maxPlayers = maxPlayers;
@@ -24,8 +29,44 @@ public class GameState {
         this.gameMap = GameMap.createTestMap();
         this.dataSource = dataSource;
         this.itemFactory = new ItemFactory(dataSource);
+        this.npcSpawner = new NPCSpawner(gameMap);
+
+        // Initialize NPCs
+        npcSpawner.spawnInitialNPCs();
+
         System.out.println("Game world initialized with " + gameMap.getAllRooms().size() + " rooms");
         System.out.println("Starting room: " + gameMap.getStartingRoom().getName());
+    }
+
+    // DataSource Getter
+    public DataSource getDataSource() {
+        return dataSource;
+    }
+
+    // NPC Management Methods
+    public void tickNPCs() {
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastNPCTick >= NPC_TICK_INTERVAL) {
+            npcSpawner.getActiveNPCs().forEach(NPC::onTick);
+            npcSpawner.handleRespawns();
+            lastNPCTick = currentTime;
+        }
+    }
+
+    public Optional<NPC> getNPC(UUID npcId) {
+        return npcSpawner.getNPC(npcId);
+    }
+
+    public Collection<NPC> getAllNPCs() {
+        return npcSpawner.getActiveNPCs();
+    }
+
+    public void removeNPC(UUID npcId) {
+        npcSpawner.removeNPC(npcId);
+    }
+
+    public NPCSpawner getNpcSpawner() {
+        return npcSpawner;
     }
 
     // Player Management Methods
@@ -69,13 +110,11 @@ public class GameState {
                                   Race race, CharacterClass characterClass,
                                   Map<Attributes, Integer> attributes) {
         try {
-            // Create initial inventory and equipment
             Inventory inventory = new Inventory(100.0, 20);
             Equipment equipment = new Equipment(null);
 
-            // Create new player using the provided ID - IMPORTANT: Use the passed in ID
             Player newPlayer = new Player(
-                    id,                 // Use the ID passed in, don't generate new one
+                    id,
                     ownerId,
                     firstName,
                     lastName,
@@ -93,14 +132,12 @@ public class GameState {
                     System.currentTimeMillis()
             );
 
-            // Add to players map FIRST
-            players.put(id, newPlayer);  // Use the same ID here
+            players.put(id, newPlayer);
 
             try {
-                // Give starter items AFTER the player is in the map
                 itemFactory.giveStarterItems(newPlayer);
             } catch (Exception e) {
-                players.remove(id);  // Use same ID for cleanup
+                players.remove(id);
                 throw e;
             }
 
@@ -112,31 +149,25 @@ public class GameState {
         }
     }
 
-    // The rest of your existing methods remain unchanged
     public Player loadPlayer(UUID playerId) {
         Player player = players.get(playerId);
         if (player != null) {
             Room room;
 
-            // If player has a current room, try to load it
             String roomId = player.getCurrentRoomId();
             if (roomId != null) {
                 room = gameMap.getRoom(roomId);
             } else {
-                // If no room is set or room doesn't exist, start at spaceport
                 room = gameMap.getStartingRoom();
                 System.out.println("Placing new player in starting room: " + room.getName());
             }
 
-            // Update player's current room
             player.setCurrentRoom(room);
             room.addPlayer(player);
 
-            // Load inventory and equipment
             player.setInventory(itemFactory.loadPlayerInventory(player));
             player.setEquipment(itemFactory.loadPlayerEquipment(player));
 
-            // Mark player as online
             player.setOnline(true);
 
             System.out.println("Player " + player.getFullName() + " loaded into " + room.getName() +
@@ -148,17 +179,15 @@ public class GameState {
     public void unloadPlayer(UUID playerId) {
         Player player = players.get(playerId);
         if (player != null) {
-            // Remove player from current room
             Room currentRoom = player.getCurrentRoom();
             if (currentRoom != null) {
                 currentRoom.removePlayer(player);
             }
-
-            // Mark player as offline but keep in players map
             player.setOnline(false);
         }
     }
 
+    // In GameState.java
     public Player joinGame(UUID userId, UUID playerId) {
         Player player = players.get(playerId);
         if (player == null) {
@@ -169,7 +198,50 @@ public class GameState {
             throw new IllegalStateException("Not authorized to use this character");
         }
 
-        return loadPlayer(playerId);
+        // First check if they have a saved room
+        String savedRoomId = player.getCurrentRoomId();
+        Room targetRoom;
+
+        if (savedRoomId != null) {
+            targetRoom = gameMap.getRoom(savedRoomId);
+            // If saved room doesn't exist anymore, use starting room
+            if (targetRoom == null) {
+                targetRoom = gameMap.getStartingRoom();
+                player.setCurrentRoomId(targetRoom.getId());
+            }
+        } else {
+            // No saved room, use starting room
+            targetRoom = gameMap.getStartingRoom();
+            player.setCurrentRoomId(targetRoom.getId());
+        }
+
+        // Set the current room and add player to it
+        player.setCurrentRoom(targetRoom);
+        targetRoom.addPlayer(player);
+
+        // Load inventory and equipment
+        player.setInventory(itemFactory.loadPlayerInventory(player));
+        player.setEquipment(itemFactory.loadPlayerEquipment(player));
+        player.setOnline(true);
+
+        System.out.println("Player " + player.getFullName() + " joined in room: " + targetRoom.getName());
+        return player;
+    }
+
+    // Add method to save player's current location
+    public void savePlayerLocation(Player player) {
+        if (player == null || player.getCurrentRoom() == null) return;
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "UPDATE character SET current_location = ? WHERE id = ?"
+             )) {
+            stmt.setString(1, player.getCurrentRoom().getId());
+            stmt.setObject(2, player.getId());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Error saving player location: " + e.getMessage());
+        }
     }
 
     public void leaveGame(UUID playerId) {
@@ -215,6 +287,7 @@ public class GameState {
     // Game State Validation
     public boolean validateGameState() {
         boolean valid = true;
+        // Validate players
         for (Player player : getOnlinePlayers()) {
             if (player.getCurrentRoom() == null) {
                 valid = false;
@@ -223,7 +296,6 @@ public class GameState {
                 startingRoom.addPlayer(player);
             }
 
-            // Validate inventory and equipment
             if (player.getInventory() == null) {
                 valid = false;
                 player.setInventory(itemFactory.loadPlayerInventory(player));
@@ -233,6 +305,16 @@ public class GameState {
                 player.setEquipment(itemFactory.loadPlayerEquipment(player));
             }
         }
+
+        // Validate NPCs
+        for (NPC npc : npcSpawner.getActiveNPCs()) {
+            if (npc.getCurrentRoom() == null) {
+                valid = false;
+                Room startingRoom = gameMap.getStartingRoom();
+                npc.setCurrentRoom(startingRoom);
+            }
+        }
+
         return valid;
     }
 
@@ -243,6 +325,10 @@ public class GameState {
                 unloadPlayer(player.getId());
             }
         }
+
+        // Clean up NPCs
+        new ArrayList<>(npcSpawner.getActiveNPCs()).forEach(npc ->
+                npcSpawner.removeNPC(npc.getId()));
     }
 
     // Map Access

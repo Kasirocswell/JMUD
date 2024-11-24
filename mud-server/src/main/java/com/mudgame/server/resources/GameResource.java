@@ -4,8 +4,10 @@ import com.mudgame.api.commands.CommandResult;
 import com.mudgame.api.commands.GameCommand;
 import com.mudgame.entities.Attributes;
 import com.mudgame.entities.CharacterClass;
+import com.mudgame.entities.GameMap;
 import com.mudgame.entities.Player;
 import com.mudgame.entities.Race;
+import com.mudgame.entities.Room;
 import com.mudgame.server.core.GameState;
 
 import jakarta.ws.rs.Consumes;
@@ -18,6 +20,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -30,9 +35,11 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 public class GameResource {
     private final GameState gameState;
+    private final DataSource dataSource;
 
     public GameResource(GameState gameState) {
         this.gameState = gameState;
+        this.dataSource = gameState.getDataSource();
     }
 
     // Character Management Endpoints
@@ -54,8 +61,16 @@ public class GameResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response createCharacter(CreateCharacterRequest request) {
         try {
+            // Get starting room ID from game state if no current_location provided
+            String roomId = request.getCurrentLocation();
+            if (roomId == null) {
+                Room startingRoom = gameState.getGameMap().getStartingRoom();
+                roomId = startingRoom.getId();
+            }
+
+            // Create the player with the specified ID
             Player player = gameState.createCharacter(
-                    request.getId(),      // Pass the ID
+                    request.getId(),  // Use the provided ID instead of generating new
                     request.getOwnerId(),
                     request.getFirstName(),
                     request.getLastName(),
@@ -63,13 +78,23 @@ public class GameResource {
                     request.getCharacterClass(),
                     request.getAttributes()
             );
+
+            // Set location
+            player.setCurrentRoomId(roomId);
+            Room room = gameState.getGameMap().getRoom(roomId);
+            if (room != null) {
+                player.setCurrentRoom(room);
+                room.addPlayer(player);
+            }
+
             return Response.ok(player).build();
         } catch (Exception e) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity(new ErrorResponse(e.getMessage()))
+                    .entity(new ErrorResponse("Error creating character: " + e.getMessage()))
                     .build();
         }
     }
+
 
     @GET
     @Path("/characters/get/{characterId}")
@@ -133,8 +158,31 @@ public class GameResource {
                         .entity(new ErrorResponse("Character not found"))
                         .build();
             }
-            return Response.ok(new JoinResponse(player.getId(),
-                    "Welcome back, " + player.getFullName() + "!")).build();
+
+            // Get room name for welcome message
+            String locationName = player.getCurrentRoom() != null ?
+                    player.getCurrentRoom().getName() :
+                    "an unknown location";
+
+            // Create character name based on whether last name exists
+            String characterName = player.getLastName() != null && !player.getLastName().trim().isEmpty() ?
+                    String.format("%s %s", player.getFirstName(), player.getLastName()) :
+                    player.getFirstName();
+
+            // Create a detailed welcome message
+            String welcomeMessage = String.format(
+                    "Welcome back, %s! You find yourself in %s. " +
+                            "[Health: %d/%d | Energy: %d/%d | Credits: %d]",
+                    characterName,
+                    locationName,
+                    player.getHealth(),
+                    player.getMaxHealth(),
+                    player.getEnergy(),
+                    player.getMaxEnergy(),
+                    player.getCredits()
+            );
+
+            return Response.ok(new JoinResponse(player.getId(), welcomeMessage)).build();
         } catch (IllegalStateException e) {
             System.out.println("Error joining game: " + e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
@@ -198,6 +246,7 @@ public class GameResource {
         private Race race;
         private CharacterClass characterClass;
         private Map<Attributes, Integer> attributes;
+        private String currentLocation;
 
         // Getters and setters
         public UUID getId() { return id; }  // Added missing getId
@@ -214,6 +263,8 @@ public class GameResource {
         public void setCharacterClass(CharacterClass characterClass) { this.characterClass = characterClass; }
         public Map<Attributes, Integer> getAttributes() { return attributes; }
         public void setAttributes(Map<Attributes, Integer> attributes) { this.attributes = attributes; }
+        public String getCurrentLocation() { return currentLocation; }
+        public void setCurrentLocation(String currentLocation) { this.currentLocation = currentLocation; }
     }
 
 

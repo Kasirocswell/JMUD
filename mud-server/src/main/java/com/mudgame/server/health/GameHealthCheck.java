@@ -13,8 +13,22 @@ public class GameHealthCheck extends HealthCheck {
     @Override
     protected Result check() {
         try {
-            int playerCount = gameState.getPlayerCount();
-            return Result.healthy("Game is running with " + playerCount + " players online");
+            int playerCount = gameState.getOnlinePlayerCount();
+            int npcCount = gameState.getAllNPCs().size();
+
+            StringBuilder status = new StringBuilder()
+                    .append("Game is running with ")
+                    .append(playerCount)
+                    .append(" players online and ")
+                    .append(npcCount)
+                    .append(" active NPCs");
+
+            // Perform basic validation
+            if (!gameState.validateGameState()) {
+                return Result.unhealthy("Game state validation failed");
+            }
+
+            return Result.healthy(status.toString());
         } catch (Exception e) {
             return Result.unhealthy("Game state check failed: " + e.getMessage());
         }
