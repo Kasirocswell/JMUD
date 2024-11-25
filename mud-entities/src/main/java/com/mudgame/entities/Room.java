@@ -144,7 +144,7 @@ public class Room {
         if (!players.isEmpty()) {
             sb.append("\nPlayers here:");
             players.forEach(player -> {
-                sb.append("\n  ").append(player.getFullName());
+                sb.append("\n  ").append(player.getFirstName());
                 if (player.isDead()) {
                     sb.append(" [Dead]");
                 }

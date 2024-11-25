@@ -42,7 +42,6 @@ public class GameResource {
         this.dataSource = gameState.getDataSource();
     }
 
-    // Character Management Endpoints
     @GET
     @Path("/characters/{ownerId}")
     public Response getCharacters(@PathParam("ownerId") UUID ownerId) {
@@ -61,16 +60,15 @@ public class GameResource {
     @Consumes(MediaType.APPLICATION_JSON)
     public Response createCharacter(CreateCharacterRequest request) {
         try {
-            // Get starting room ID from game state if no current_location provided
-            String roomId = request.getCurrentLocation();
-            if (roomId == null) {
-                Room startingRoom = gameState.getGameMap().getStartingRoom();
-                roomId = startingRoom.getId();
+            // Get room name, use starting room if none provided
+            String roomName = request.getCurrentRoomName();
+            if (roomName == null) {
+                roomName = gameState.getGameMap().getStartingRoom().getName();
             }
 
             // Create the player with the specified ID
             Player player = gameState.createCharacter(
-                    request.getId(),  // Use the provided ID instead of generating new
+                    request.getId(),
                     request.getOwnerId(),
                     request.getFirstName(),
                     request.getLastName(),
@@ -79,12 +77,19 @@ public class GameResource {
                     request.getAttributes()
             );
 
-            // Set location
-            player.setCurrentRoomId(roomId);
-            Room room = gameState.getGameMap().getRoom(roomId);
+            // Set location using room name
+            player.setRoomName(roomName);
+            Room room = gameState.getGameMap().getRoomByName(roomName);
             if (room != null) {
                 player.setCurrentRoom(room);
                 room.addPlayer(player);
+            } else {
+                // If room not found, use starting room as fallback
+                Room startingRoom = gameState.getGameMap().getStartingRoom();
+                player.setRoomName(startingRoom.getName());
+                player.setCurrentRoom(startingRoom);
+                startingRoom.addPlayer(player);
+                System.out.println("Room not found: " + roomName + ", placing player in starting room: " + startingRoom.getName());
             }
 
             return Response.ok(player).build();
@@ -94,7 +99,6 @@ public class GameResource {
                     .build();
         }
     }
-
 
     @GET
     @Path("/characters/get/{characterId}")
@@ -115,18 +119,14 @@ public class GameResource {
             Map<Attributes, Integer> rolls = new EnumMap<>(Attributes.class);
             Random random = new Random();
 
-            // Roll for each attribute (3d6)
+            // Roll for each attribute (4d6, drop lowest)
             for (Attributes attr : Attributes.values()) {
-                // Roll 4d6, drop lowest
                 int[] diceRolls = new int[4];
                 for (int i = 0; i < 4; i++) {
                     diceRolls[i] = random.nextInt(6) + 1;
                 }
-                // Find the lowest roll
                 int lowestRoll = Arrays.stream(diceRolls).min().getAsInt();
-                // Sum all dice except the lowest
                 int total = Arrays.stream(diceRolls).sum() - lowestRoll;
-
                 rolls.put(attr, total);
             }
 
@@ -144,7 +144,6 @@ public class GameResource {
         }
     }
 
-    // Game Session Management Endpoints
     @POST
     @Path("/join")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -204,7 +203,6 @@ public class GameResource {
         }
     }
 
-    // Game Command Endpoint
     @POST
     @Path("/command")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -246,11 +244,11 @@ public class GameResource {
         private Race race;
         private CharacterClass characterClass;
         private Map<Attributes, Integer> attributes;
-        private String currentLocation;
+        private String currentRoomName;
 
         // Getters and setters
-        public UUID getId() { return id; }  // Added missing getId
-        public void setId(UUID id) { this.id = id; }  // Added missing setId
+        public UUID getId() { return id; }
+        public void setId(UUID id) { this.id = id; }
         public UUID getOwnerId() { return ownerId; }
         public void setOwnerId(UUID ownerId) { this.ownerId = ownerId; }
         public String getFirstName() { return firstName; }
@@ -263,14 +261,13 @@ public class GameResource {
         public void setCharacterClass(CharacterClass characterClass) { this.characterClass = characterClass; }
         public Map<Attributes, Integer> getAttributes() { return attributes; }
         public void setAttributes(Map<Attributes, Integer> attributes) { this.attributes = attributes; }
-        public String getCurrentLocation() { return currentLocation; }
-        public void setCurrentLocation(String currentLocation) { this.currentLocation = currentLocation; }
+        public String getCurrentRoomName() { return currentRoomName; }
+        public void setCurrentRoomName(String currentRoomName) { this.currentRoomName = currentRoomName; }
     }
 
-
     public static class JoinRequest {
-        private UUID userId;    // Changed from String
-        private UUID playerId;  // Changed from String
+        private UUID userId;
+        private UUID playerId;
 
         public UUID getUserId() { return userId; }
         public void setUserId(UUID userId) { this.userId = userId; }
@@ -279,7 +276,7 @@ public class GameResource {
     }
 
     public static class JoinResponse {
-        private final UUID playerId;  // Changed from String
+        private final UUID playerId;
         private final String message;
 
         public JoinResponse(UUID playerId, String message) {
@@ -292,7 +289,7 @@ public class GameResource {
     }
 
     public static class CommandRequest {
-        private UUID playerId;  // Changed from String
+        private UUID playerId;
         private String command;
 
         public UUID getPlayerId() { return playerId; }

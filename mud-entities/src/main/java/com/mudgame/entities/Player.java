@@ -14,7 +14,7 @@ public class Player {
     private Race race;
     private CharacterClass characterClass;
     private int credits;
-    private String currentRoomId;
+    private String roomName;  // Changed from currentRoomId
     @JsonIgnore
     private Room currentRoom;
     private int level;
@@ -50,14 +50,13 @@ public class Player {
         this.maxEnergy = 100;
         this.isOnline = false;
         this.lastSeen = System.currentTimeMillis();
-        this.inventory = inventory;  // Use the passed in inventory
-        this.equipment = equipment;  // Use the passed in equipment
+        this.inventory = inventory;
+        this.equipment = equipment;
     }
 
     // Constructor for loading existing character
-    // Constructor for loading existing character
     public Player(
-            @JsonProperty("id") UUID id,  // Accept the ID parameter
+            @JsonProperty("id") UUID id,
             @JsonProperty("ownerId") UUID ownerId,
             @JsonProperty("firstName") String firstName,
             @JsonProperty("lastName") String lastName,
@@ -66,21 +65,21 @@ public class Player {
             @JsonProperty("inventory") Inventory inventory,
             @JsonProperty("equipment") Equipment equipment,
             @JsonProperty("credits") int credits,
-            @JsonProperty("currentRoomId") String currentRoomId,
+            @JsonProperty("room_name") String roomName,  // Updated to match DB column
             @JsonProperty("level") int level,
             @JsonProperty("health") int health,
             @JsonProperty("maxHealth") int maxHealth,
             @JsonProperty("energy") int energy,
             @JsonProperty("maxEnergy") int maxEnergy,
             @JsonProperty("lastSeen") long lastSeen) {
-        this.id = id;  // Use the provided ID
+        this.id = id;
         this.ownerId = ownerId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.race = race;
         this.characterClass = characterClass;
         this.credits = credits;
-        this.currentRoomId = currentRoomId;
+        this.roomName = roomName;
         this.level = level;
         this.health = health;
         this.maxHealth = maxHealth;
@@ -93,112 +92,49 @@ public class Player {
     }
 
     // Getters
-    public UUID getId() {
-        return id;
-    }
+    public UUID getId() { return id; }
+    public UUID getOwnerId() { return ownerId; }
+    public String getFirstName() { return firstName; }
+    public String getLastName() { return lastName; }
+    public String getFullName() { return firstName + (lastName != null ? " " + lastName : ""); }
+    public Race getRace() { return race; }
+    public CharacterClass getCharacterClass() { return characterClass; }
+    public int getCredits() { return credits; }
 
-    public UUID getOwnerId() {
-        return ownerId;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public String getFullName() {
-        return firstName + " " + lastName;
-    }
-
-    public Race getRace() {
-        return race;
-    }
-
-    public CharacterClass getCharacterClass() {
-        return characterClass;
-    }
-
-    public int getCredits() {
-        return credits;
-    }
-
-    public String getCurrentRoomId() {
-        return currentRoomId;
-    }
+    @JsonProperty("room_name")  // Match the database column name
+    public String getRoomName() { return roomName; }
 
     @JsonIgnore
-    public Room getCurrentRoom() {
-        return currentRoom;
-    }
+    public Room getCurrentRoom() { return currentRoom; }
 
-    public int getLevel() {
-        return level;
-    }
-
-    public int getHealth() {
-        return health;
-    }
-
-    public int getMaxHealth() {
-        return maxHealth;
-    }
-
-    public int getEnergy() {
-        return energy;
-    }
-
-    public int getMaxEnergy() {
-        return maxEnergy;
-    }
-
-    public boolean isOnline() {
-        return isOnline;
-    }
-
-    public long getLastSeen() {
-        return lastSeen;
-    }
-
-
+    public int getLevel() { return level; }
+    public int getHealth() { return health; }
+    public int getMaxHealth() { return maxHealth; }
+    public int getEnergy() { return energy; }
+    public int getMaxEnergy() { return maxEnergy; }
+    public boolean isOnline() { return isOnline; }
+    public long getLastSeen() { return lastSeen; }
+    public Inventory getInventory() { return inventory; }
+    public Equipment getEquipment() { return equipment; }
 
     // Setters
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
+    public void setFirstName(String firstName) { this.firstName = firstName; }
+    public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setInventory(Inventory inventory) { this.inventory = inventory; }
+    public void setEquipment(Equipment equipment) { this.equipment = equipment; }
+    public void setCredits(int credits) { this.credits = credits; }
 
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public void setInventory(Inventory inventory) {
-        this.inventory = inventory;
-    }
-
-    public void setEquipment(Equipment equipment) {
-        this.equipment = equipment;
-    }
-
-    public void setCredits(int credits) {
-        this.credits = credits;
-    }
-
-    public void setCurrentRoomId(String roomId) {
-        this.currentRoomId = roomId;
-    }
+    @JsonProperty("room_name")  // Match the database column name
+    public void setRoomName(String roomName) { this.roomName = roomName; }
 
     public void setCurrentRoom(Room room) {
         this.currentRoom = room;
         if (room != null) {
-            this.currentRoomId = room.getId();
+            this.roomName = room.getName();
         }
     }
 
-    public void setLevel(int level) {
-        this.level = level;
-    }
+    public void setLevel(int level) { this.level = level; }
 
     public void setHealth(int health) {
         this.health = Math.min(maxHealth, Math.max(0, health));
@@ -229,16 +165,7 @@ public class Player {
         }
     }
 
-    // Add inventory methods
-    public Inventory getInventory() {
-        return inventory;
-    }
-
-    public Equipment getEquipment() {
-        return equipment;
-    }
-
-    // Add helper methods for item management
+    // Inventory management methods
     public InventoryResult pickupItem(Item item) {
         return inventory.addItem(item);
     }
@@ -248,16 +175,13 @@ public class Player {
     }
 
     public InventoryResult equipItem(Item item) {
-        // First check if we have the item in inventory
         Optional<InventoryItem> invItem = inventory.getItem(item.getId());
         if (invItem.isEmpty()) {
             return InventoryResult.failure("You don't have that item");
         }
 
-        // Try to equip the item
         InventoryResult result = equipment.equipItem(item);
         if (result.isSuccess()) {
-            // Remove from inventory if equipped successfully
             inventory.removeItem(item.getId(), 1);
         }
         return result;
@@ -269,7 +193,6 @@ public class Player {
             return InventoryResult.failure("Nothing equipped in that slot");
         }
 
-        // Check if we have inventory space
         InventoryResult canAdd = inventory.addItem(equipped.get());
         if (!canAdd.isSuccess()) {
             return InventoryResult.failure("Not enough inventory space to unequip");

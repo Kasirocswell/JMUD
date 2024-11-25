@@ -113,6 +113,9 @@ public class GameState {
             Inventory inventory = new Inventory(100.0, 20);
             Equipment equipment = new Equipment(null);
 
+            // Set starting room name
+            String startingRoomName = gameMap.getStartingRoom().getName();
+
             Player newPlayer = new Player(
                     id,
                     ownerId,
@@ -123,7 +126,7 @@ public class GameState {
                     inventory,
                     equipment,
                     100,
-                    null,
+                    startingRoomName,  // Use room name instead of ID
                     1,
                     100,
                     100,
@@ -154,12 +157,19 @@ public class GameState {
         if (player != null) {
             Room room;
 
-            String roomId = player.getCurrentRoomId();
-            if (roomId != null) {
-                room = gameMap.getRoom(roomId);
+            String roomName = player.getRoomName();
+            if (roomName != null) {
+                room = gameMap.getRoomByName(roomName);
+                if (room == null) {
+                    // If room doesn't exist, use starting room
+                    room = gameMap.getStartingRoom();
+                    player.setRoomName(room.getName());
+                    System.out.println("Room not found: " + roomName + ", placing player in starting room: " + room.getName());
+                }
             } else {
                 room = gameMap.getStartingRoom();
-                System.out.println("Placing new player in starting room: " + room.getName());
+                player.setRoomName(room.getName());
+                System.out.println("No room name found, placing new player in starting room: " + room.getName());
             }
 
             player.setCurrentRoom(room);
@@ -184,10 +194,12 @@ public class GameState {
                 currentRoom.removePlayer(player);
             }
             player.setOnline(false);
+            savePlayerLocation(player);  // Save location before unloading
         }
     }
 
     // In GameState.java
+
     public Player joinGame(UUID userId, UUID playerId) {
         Player player = players.get(playerId);
         if (player == null) {
@@ -198,21 +210,25 @@ public class GameState {
             throw new IllegalStateException("Not authorized to use this character");
         }
 
-        // First check if they have a saved room
-        String savedRoomId = player.getCurrentRoomId();
-        Room targetRoom;
+        System.out.println("Joining game - Player: " + player.getFullName() +
+                ", Saved room name: " + player.getRoomName());
 
-        if (savedRoomId != null) {
-            targetRoom = gameMap.getRoom(savedRoomId);
-            // If saved room doesn't exist anymore, use starting room
-            if (targetRoom == null) {
-                targetRoom = gameMap.getStartingRoom();
-                player.setCurrentRoomId(targetRoom.getId());
-            }
-        } else {
-            // No saved room, use starting room
+        // Get the saved room name
+        String roomName = player.getRoomName();
+        Room targetRoom = null;
+
+        // Try to find the saved room
+        if (roomName != null && !roomName.trim().isEmpty()) {
+            targetRoom = gameMap.getRoomByName(roomName);
+            System.out.println("Looking for saved room: " + roomName +
+                    ", found: " + (targetRoom != null));
+        }
+
+        // Only use starting room if no saved room or saved room not found
+        if (targetRoom == null) {
             targetRoom = gameMap.getStartingRoom();
-            player.setCurrentRoomId(targetRoom.getId());
+            player.setRoomName(targetRoom.getName());
+            System.out.println("Using starting room: " + targetRoom.getName());
         }
 
         // Set the current room and add player to it
@@ -224,21 +240,21 @@ public class GameState {
         player.setEquipment(itemFactory.loadPlayerEquipment(player));
         player.setOnline(true);
 
-        System.out.println("Player " + player.getFullName() + " joined in room: " + targetRoom.getName());
+        System.out.println("Player " + player.getFirstName() +
+                " joined in room: " + targetRoom.getName());
         return player;
     }
-
-    // Add method to save player's current location
     public void savePlayerLocation(Player player) {
         if (player == null || player.getCurrentRoom() == null) return;
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "UPDATE character SET current_location = ? WHERE id = ?"
+                     "UPDATE character SET room_name = ? WHERE id = ?"
              )) {
-            stmt.setString(1, player.getCurrentRoom().getId());
+            stmt.setString(1, player.getCurrentRoom().getName());
             stmt.setObject(2, player.getId());
             stmt.executeUpdate();
+            System.out.println("Saved location for player " + player.getFullName() + ": " + player.getCurrentRoom().getName());
         } catch (SQLException e) {
             System.err.println("Error saving player location: " + e.getMessage());
         }
@@ -268,6 +284,10 @@ public class GameState {
                     currentRoom.removePlayer(player);
                     nextRoom.addPlayer(player);
                     player.setCurrentRoom(nextRoom);
+
+                    // Save location after successful movement
+                    savePlayerLocation(player);
+
                     return true;
                 }
             }
@@ -320,8 +340,10 @@ public class GameState {
 
     // Cleanup
     public void cleanup() {
+        // Save locations for all online players before cleanup
         for (Player player : players.values()) {
             if (player.isOnline()) {
+                savePlayerLocation(player);
                 unloadPlayer(player.getId());
             }
         }
