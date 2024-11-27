@@ -2,12 +2,14 @@ package com.mudgame.server.services;
 
 import com.mudgame.entities.*;
 import com.mudgame.entities.npcs.*;
+import com.mudgame.events.EventListener;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class NPCSpawner {
     private final GameMap gameMap;
+    private final EventListener eventListener; // Add EventListener dependency
     private final Map<UUID, NPC> activeNPCs = new ConcurrentHashMap<>();
     private final Map<String, SpawnableNPC> npcTypes = new HashMap<>();
     private final Random random = new Random();
@@ -17,8 +19,9 @@ public class NPCSpawner {
     private static final double DEFAULT_SPAWN_CHANCE = 0.1; // 10% base chance
     private long lastSpawnCheck = System.currentTimeMillis();
 
-    public NPCSpawner(GameMap gameMap) {
+    public NPCSpawner(GameMap gameMap, EventListener eventListener) {
         this.gameMap = gameMap;
+        this.eventListener = Objects.requireNonNull(eventListener, "EventListener cannot be null");
         registerNPCTypes();
     }
 
@@ -28,11 +31,11 @@ public class NPCSpawner {
     private void registerNPCTypes() {
         try {
             // Register security bots
-            registerNPCType(new SecurityBotNPC(1));
+            registerNPCType(new SecurityBotNPC(1, eventListener)); // Pass EventListener to NPCs
 
             // Additional NPC types will be registered here
-            // registerNPCType(new MerchantBotNPC(1));
-            // registerNPCType(new MaintenanceBotNPC(1));
+            // registerNPCType(new MerchantBotNPC(1, eventListener));
+            // registerNPCType(new MaintenanceBotNPC(1, eventListener));
 
             System.out.println("Registered " + npcTypes.size() + " NPC types");
         } catch (Exception e) {

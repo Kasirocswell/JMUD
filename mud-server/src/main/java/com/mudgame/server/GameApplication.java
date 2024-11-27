@@ -33,12 +33,12 @@ public class GameApplication extends Application<GameConfiguration> {
         dataSource.setSsl(true);
         dataSource.setSslMode("require");
 
-        // Create game state with DataSource
-        GameState gameState = new GameState(configuration.getMaxPlayers(), dataSource);
-
-        // Create and register game manager
-        GameManager gameManager = new GameManager(gameState);
+        // Create and register the GameManager (which initializes GameState and EventListener)
+        GameManager gameManager = new GameManager(configuration.getMaxPlayers(), dataSource);
         environment.lifecycle().manage(gameManager);
+
+        // Get GameState from GameManager
+        GameState gameState = gameManager.getGameState();
 
         // Register commands
         DefaultCommandRegistry commandRegistry = new DefaultCommandRegistry();

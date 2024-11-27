@@ -1,5 +1,6 @@
 package com.mudgame.entities.npcs;
 
+import com.mudgame.events.EventListener;
 import com.mudgame.entities.*;
 import com.mudgame.entities.enemies.EnemyNPC;
 
@@ -16,7 +17,9 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     private long lastScanTime;
     private Set<UUID> knownHostiles;
 
-    public SecurityBotNPC(int level) {
+    private final EventListener eventListener; // Event listener for broadcasting events
+
+    public SecurityBotNPC(int level, EventListener eventListener) {
         super(
                 "Security Bot MK-" + (level + random.nextInt(999)),
                 generateDescription(level),
@@ -30,6 +33,7 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         this.alertLevel = 0;
         this.lastScanTime = System.currentTimeMillis();
         this.knownHostiles = new HashSet<>();
+        this.eventListener = eventListener; // Save the event listener reference
         initializeResponses();
     }
 
@@ -37,7 +41,6 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         StringBuilder desc = new StringBuilder();
         desc.append("A heavily armored security robot with ");
 
-        // Appearance varies by level
         if (level <= 2) {
             desc.append("basic sensors and lightweight plating. ");
         } else if (level <= 5) {
@@ -69,50 +72,44 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     @Override
     public SpawnConfiguration getSpawnConfiguration() {
         return new SpawnConfiguration(
-                "security_bot",          // Unique ID for this NPC type
-                3,                       // Max 3 instances at once
-                300,                     // Respawn time in seconds
-                Arrays.asList(           // Valid spawn locations
+                "security_bot",
+                3,
+                300,
+                Arrays.asList(
                         "Shibuya Crossing",
                         "Shibuya Security Post",
-                        ".*Security.*",      // Any room with "Security" in the name
-                        ".*Maintenance.*",   // Any room with "Maintenance" in the name
-                        ".*Restricted.*",    // Any restricted areas
-                        ".*Cargo Bay.*"      // Any cargo bays
+                        ".*Security.*",
+                        ".*Maintenance.*",
+                        ".*Restricted.*",
+                        ".*Cargo Bay.*"
                 ),
-                1,                      // Min level
-                10,                     // Max level
-                0.1                     // 10% spawn chance when eligible
+                1,
+                10,
+                0.1
         );
     }
 
     @Override
     public NPC createInstance(int level) {
-        return new SecurityBotNPC(level);
+        return new SecurityBotNPC(level, eventListener);
     }
 
     @Override
     public void onTick() {
         if (isDead()) return;
 
-        // Handle energy management
         updateEnergy();
-
-        // Perform periodic room scan
         performRoomScan();
-
-        // Update alert status
         updateAlertStatus();
 
-        // Handle combat if hostile
         if (isHostile()) {
-            super.onTick(); // Handle basic enemy behavior
+            super.onTick();
         }
     }
 
     private void updateEnergy() {
         if (isHostile()) {
-            energyLevel = Math.max(0, energyLevel - (int)ENERGY_DRAIN_RATE);
+            energyLevel = Math.max(0, energyLevel - (int) ENERGY_DRAIN_RATE);
             if (energyLevel == 0) {
                 setHostile(false);
                 setState(NPCState.IDLE);
@@ -120,19 +117,19 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
                 broadcastToRoom(getName() + " powers down, entering emergency conservation mode.");
             }
         } else if (energyLevel < MAX_ENERGY) {
-            energyLevel = Math.min(MAX_ENERGY, energyLevel + (int)ENERGY_RECHARGE_RATE);
+            energyLevel = Math.min(MAX_ENERGY, energyLevel + (int) ENERGY_RECHARGE_RATE);
             if (energyLevel == MAX_ENERGY && alertLevel > 0) {
                 alertLevel = 1; // Return to suspicious state when fully charged
+                broadcastToRoom(getName() + " is fully recharged and resumes patrolling.");
             }
         }
     }
 
     private void performRoomScan() {
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastScanTime > 5000) { // Scan every 5 seconds
+        if (currentTime - lastScanTime > 5000) {
             Room room = getCurrentRoom();
             if (room != null) {
-                // Look for suspicious players
                 room.getPlayers().forEach(this::assessThreat);
             }
             lastScanTime = currentTime;
@@ -140,8 +137,6 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     }
 
     private void assessThreat(Player player) {
-        // TODO: Implement proper threat assessment
-        // For now, just track known hostiles
         if (knownHostiles.contains(player.getId())) {
             alertLevel = Math.max(alertLevel, 2);
             setHostile(true);
@@ -152,11 +147,17 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         Room room = getCurrentRoom();
         if (room == null) return;
 
-        // Reduce alert level over time if no threats
         if (alertLevel > 0 && room.getPlayers().isEmpty()) {
-            if (random.nextInt(100) < 10) { // 10% chance per tick
+            if (random.nextInt(100) < 10) {
                 alertLevel = Math.max(0, alertLevel - 1);
             }
+        }
+    }
+
+    private void broadcastToRoom(String message) {
+        Room room = getCurrentRoom();
+        if (room != null) {
+            eventListener.onEvent("room", room.getId(), message);
         }
     }
 
@@ -181,19 +182,16 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     }
 
     private String performScan(Player player) {
-        StringBuilder result = new StringBuilder();
-        result.append("Security Scan Results:\n");
-        result.append(String.format("Unit: %s\n", getName()));
-        result.append(String.format("Energy Level: %d%%\n", energyLevel));
-        result.append(String.format("Alert Status: %s\n", getAlertStatusString()));
-        result.append(String.format("Threat Assessment: %s\n",
-                knownHostiles.contains(player.getId()) ? "HOSTILE" : "Neutral"));
-
-        return result.toString();
+        return String.format(
+                "Security Scan Results:\nUnit: %s\nEnergy Level: %d%%\nAlert Status: %s\nThreat Assessment: %s",
+                getName(),
+                energyLevel,
+                getAlertStatusString(),
+                knownHostiles.contains(player.getId()) ? "HOSTILE" : "Neutral"
+        );
     }
 
     private String attemptHack(Player player) {
-        // TODO: Implement proper hacking mechanics with skill checks
         setHostile(true);
         alertLevel = 3;
         knownHostiles.add(player.getId());
@@ -205,7 +203,6 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
             setHostile(true);
             return "ERROR: Cannot deactivate while security protocols are active!";
         }
-        // TODO: Implement proper deactivation mechanics
         return "Access denied. Security authorization required.";
     }
 
@@ -265,32 +262,25 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
 
     private String getAlertStatusString() {
         switch (alertLevel) {
-            case 0: return "Normal";
-            case 1: return "Elevated";
-            case 2: return "High Alert";
-            case 3: return "Combat Ready";
-            default: return "Unknown";
+            case 0:
+                return "Normal";
+            case 1:
+                return "Elevated";
+            case 2:
+                return "High Alert";
+            case 3:
+                return "Combat Ready";
+            default:
+                return "Unknown";
         }
     }
-
-    private void broadcastToRoom(String message) {
-        // TODO: Implement room broadcast system
-        System.out.println(message); // Temporary implementation
-    }
-
-    // Getters
-    public int getEnergyLevel() { return energyLevel; }
-    public int getAlertLevel() { return alertLevel; }
 
     @Override
     public void onDeath(Player killer) {
         super.onDeath(killer);
 
-        // Drop bot-specific loot
         int creditDrop = 50 + (getLevel() * 10) + random.nextInt(100);
         killer.setCredits(killer.getCredits() + creditDrop);
-
-        // TODO: Add specific loot drops with proper loot tables
 
         broadcastToRoom(String.format("%s emits a final warning tone before powering down permanently. " +
                 "You salvage %d credits worth of parts.", getName(), creditDrop));
