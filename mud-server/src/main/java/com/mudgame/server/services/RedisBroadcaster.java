@@ -12,6 +12,9 @@ public class RedisBroadcaster {
 
     /**
      * Publishes a message to a specified Redis channel.
+     * For room messages, the channel should be the room name (e.g., "room:Shibuya_Crossing")
+     * For player messages, the channel should be the player ID (e.g., "player:123")
+     * For system messages, the channel should be "system"
      *
      * @param channel The Redis channel to publish the message to.
      * @param message The message to broadcast.
@@ -23,6 +26,28 @@ public class RedisBroadcaster {
         } catch (Exception e) {
             System.err.println("Error broadcasting message: " + e.getMessage());
         }
+    }
+
+    /**
+     * Helper method for broadcasting to a room using room name
+     */
+    public void broadcastToRoom(String roomName, String message) {
+        String channel = "room:" + roomName.replace(" ", "_");
+        broadcast(channel, message);
+    }
+
+    /**
+     * Helper method for broadcasting to a specific player
+     */
+    public void broadcastToPlayer(String playerId, String message) {
+        broadcast("player:" + playerId, message);
+    }
+
+    /**
+     * Helper method for broadcasting system messages
+     */
+    public void broadcastSystem(String message) {
+        broadcast("system", message);
     }
 
     /**

@@ -24,7 +24,7 @@ public class GameManager implements Managed, EventListener {
 
         // Example test event during initialization
         System.out.println("Testing EventListener implementation...");
-        onEvent("room", "101", "A test message for room 101.");
+        onEvent("room", "Shibuya Crossing", "A test message for Shibuya Crossing.");
         onEvent("player", "202", "A test message for player 202.");
         onEvent("system", null, "A test message for the entire system.");
         System.out.println("EventListener test complete.");
@@ -35,17 +35,18 @@ public class GameManager implements Managed, EventListener {
         switch (eventType) {
             case "room":
                 System.out.println("Broadcasting to room: " + target + " | Message: " + message);
-                redisBroadcaster.broadcast("room:" + target, message);
+                // Now using room name directly for the channel
+                redisBroadcaster.broadcastToRoom(target, message);
                 break;
 
             case "player":
                 System.out.println("Sending private message to player: " + target + " | Message: " + message);
-                redisBroadcaster.broadcast("player:" + target, message);
+                redisBroadcaster.broadcastToPlayer(target, message);
                 break;
 
             case "system":
                 System.out.println("Broadcasting system message: " + message);
-                redisBroadcaster.broadcast("system", message);
+                redisBroadcaster.broadcastSystem(message);
                 break;
 
             default:

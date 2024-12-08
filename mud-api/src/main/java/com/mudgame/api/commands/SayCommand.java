@@ -22,7 +22,6 @@ public interface SayCommand extends GameCommand {
         String message = String.join(" ", args);
         return CommandResult.builder()
                 .success(true)
-                .privateMessage("You say: " + message)
                 .roomMessage(player.getFullName() + " says: " + message)
                 .build();
     }

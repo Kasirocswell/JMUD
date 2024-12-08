@@ -1,7 +1,8 @@
 package com.mudgame.server.services;
 
 import com.mudgame.entities.*;
-import com.mudgame.entities.npcs.*;
+import com.mudgame.entities.enemies.SecurityBotNPC;
+import com.mudgame.entities.merchants.NeoTokyoWeaponShopMerchant;
 import com.mudgame.events.EventListener;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,7 +33,7 @@ public class NPCSpawner {
         try {
             // Register security bots
             registerNPCType(new SecurityBotNPC(1, eventListener)); // Pass EventListener to NPCs
-
+            registerNPCType(new NeoTokyoWeaponShopMerchant(1, eventListener));
             // Additional NPC types will be registered here
             // registerNPCType(new MerchantBotNPC(1, eventListener));
             // registerNPCType(new MaintenanceBotNPC(1, eventListener));

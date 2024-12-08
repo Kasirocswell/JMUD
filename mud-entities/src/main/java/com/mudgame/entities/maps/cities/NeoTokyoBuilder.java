@@ -24,10 +24,26 @@ public class NeoTokyoBuilder extends BaseMapBuilder {
                 "A cluttered maintenance area filled with spare parts and repair equipment."
         );
 
-        // Connect the rooms
+        // Add weapon shop exterior
+        Room weaponShopExterior = createAndAddRoom(map,
+                "Takeda's Weapons",
+                "A traditional storefront with paper lanterns flanking the entrance. " +
+                        "Through the shop window, you can see the gleam of high-tech weaponry displayed on elegant wooden stands."
+        );
+
+        // Add weapon shop interior
+        Room weaponShopInterior = createAndAddRoom(map,
+                "Weapon Shop",
+                "A traditional-style shop with a modern twist. High-tech weapons line the walls, " +
+                        "each displayed on elegant wooden stands. Holographic price tags float beside each item."
+        );
+
+        // Connect the main street rooms
         connectBidirectional(map, shibuyaCrossing, Direction.NORTH, securityPost);
         connectBidirectional(map, securityPost, Direction.EAST, maintenanceBay);
+        connectBidirectional(map, shibuyaCrossing, Direction.EAST, weaponShopExterior);
 
-        // Add more rooms and connections as needed
+        // Connect shop exterior to interior using ENTER/EXIT
+        connectBidirectional(map, weaponShopExterior, Direction.ENTER, weaponShopInterior);
     }
 }

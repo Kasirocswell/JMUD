@@ -1,8 +1,7 @@
-package com.mudgame.entities.npcs;
+package com.mudgame.entities.enemies;
 
 import com.mudgame.events.EventListener;
 import com.mudgame.entities.*;
-import com.mudgame.entities.enemies.EnemyNPC;
 
 import java.util.*;
 
@@ -16,8 +15,10 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     private int alertLevel; // 0-3: 0=normal, 1=suspicious, 2=alert, 3=combat
     private long lastScanTime;
     private Set<UUID> knownHostiles;
+    private long lastIdleMessage;
+    private static final long IDLE_MESSAGE_COOLDOWN = 10000; // 10 seconds minimum between idle messages
 
-    private final EventListener eventListener; // Event listener for broadcasting events
+    private final EventListener eventListener;
 
     public SecurityBotNPC(int level, EventListener eventListener) {
         super(
@@ -32,8 +33,9 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         this.energyLevel = MAX_ENERGY;
         this.alertLevel = 0;
         this.lastScanTime = System.currentTimeMillis();
+        this.lastIdleMessage = System.currentTimeMillis();
         this.knownHostiles = new HashSet<>();
-        this.eventListener = eventListener; // Save the event listener reference
+        this.eventListener = eventListener;
         initializeResponses();
     }
 
@@ -94,6 +96,27 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         return new SecurityBotNPC(level, eventListener);
     }
 
+    private String getRandomIdleMessage() {
+        String[] idleMessages = {
+                "performs a routine sensor sweep of the area.",
+                "emits a low humming sound as it runs diagnostics.",
+                "adjusts its positioning servos with a quiet whir.",
+                "scans the surroundings with pulsing blue sensors.",
+                "rotates slowly, monitoring the area.",
+                "projects a holographic security grid briefly.",
+                "recalibrates its internal systems.",
+                "emits a series of soft beeping sounds.",
+                "runs a quick systems check, status lights blinking.",
+                "patrols the perimeter of the room."
+        };
+        return idleMessages[random.nextInt(idleMessages.length)];
+    }
+
+    private void broadcastIdleMessage() {
+        String message = getRandomIdleMessage();
+        broadcastToRoom(getName() + " " + message);
+    }
+
     @Override
     public void onTick() {
         if (isDead()) return;
@@ -101,6 +124,17 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
         updateEnergy();
         performRoomScan();
         updateAlertStatus();
+
+        // Add random idle messages when not hostile
+        long currentTime = System.currentTimeMillis();
+        if (!isHostile() &&
+                energyLevel > 20 &&
+                (currentTime - lastIdleMessage) >= IDLE_MESSAGE_COOLDOWN &&
+                random.nextInt(100) < 5) { // 5% chance each tick when conditions met
+
+            broadcastIdleMessage();
+            lastIdleMessage = currentTime;
+        }
 
         if (isHostile()) {
             super.onTick();
@@ -155,9 +189,10 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     }
 
     private void broadcastToRoom(String message) {
-        Room room = getCurrentRoom();
-        if (room != null) {
-            eventListener.onEvent("room", room.getId(), message);
+        Room currentRoom = getCurrentRoom();
+        if (currentRoom != null) {
+            // Use room name for broadcasting
+            eventListener.onEvent("room", currentRoom.getName(), message);
         }
     }
 
@@ -278,7 +313,6 @@ public class SecurityBotNPC extends EnemyNPC implements SpawnableNPC {
     @Override
     public void onDeath(Player killer) {
         super.onDeath(killer);
-
         int creditDrop = 50 + (getLevel() * 10) + random.nextInt(100);
         killer.setCredits(killer.getCredits() + creditDrop);
 

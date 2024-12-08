@@ -12,7 +12,7 @@ public interface MoveCommand extends GameCommand {
 
     @Override
     default String getHelp() {
-        return "move <direction> - Move in the specified direction (n/s/e/w/u/d)";
+        return "move <direction> - Move in the specified direction (n/s/e/w/u/d/enter/exit)";
     }
 
     @Override
@@ -40,14 +40,23 @@ public interface MoveCommand extends GameCommand {
             // Add player to new room
             destinationRoom.addPlayer(player);
 
+            String moveMessage;
+            if (direction == Direction.ENTER) {
+                moveMessage = " enters " + destinationRoom.getName() + ".";
+            } else if (direction == Direction.EXIT) {
+                moveMessage = " exits to " + destinationRoom.getName() + ".";
+            } else {
+                moveMessage = " has left to the " + direction.name().toLowerCase() + ".";
+            }
+
             return CommandResult.builder()
                     .success(true)
                     .privateMessage(destinationRoom.getFullDescription())
-                    .roomMessage(player.getFullName() + " has left to the " + direction.name().toLowerCase() + ".")
+                    .roomMessage(player.getFullName() + moveMessage)
                     .build();
 
         } catch (IllegalArgumentException e) {
-            return CommandResult.failure("Invalid direction. Use n/s/e/w/u/d.");
+            return CommandResult.failure("Invalid direction. Use n/s/e/w/u/d/enter/exit.");
         }
     }
 }

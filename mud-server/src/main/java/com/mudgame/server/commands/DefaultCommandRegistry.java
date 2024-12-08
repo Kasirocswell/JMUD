@@ -13,6 +13,7 @@ import com.mudgame.api.commands.InventoryCommand;
 import com.mudgame.api.commands.LookCommand;
 import com.mudgame.api.commands.MoveCommand;
 import com.mudgame.api.commands.SayCommand;
+import com.mudgame.api.commands.TalkCommand;
 import com.mudgame.api.commands.UnequipCommand;
 import com.mudgame.entities.Player;
 
@@ -48,6 +49,9 @@ public class DefaultCommandRegistry implements CommandRegistry {
         registerCommand(new EquipCommand() {});
         registerCommand(new UnequipCommand() {});
         registerCommand(new ExamineCommand() {});
+
+        // Register Talk Command
+        registerCommand(new TalkCommand() {});
 
         // Register help command
         registerCommand(new GameCommand() {

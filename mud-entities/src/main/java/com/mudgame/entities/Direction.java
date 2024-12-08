@@ -37,13 +37,13 @@ public enum Direction {
             return UP;
         }
     },
-    ENTER("e") {
+    ENTER("enter") {
         @Override
         public Direction opposite() {
             return EXIT;
         }
     },
-    EXIT("ex") {
+    EXIT("exit") {
         @Override
         public Direction opposite() {
             return ENTER;
