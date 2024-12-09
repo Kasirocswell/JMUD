@@ -176,5 +176,19 @@ public class Item {
         }
         return sb.toString();
     }
+
+    public String getDetailedDisplay() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%-25s", name));
+        if (stackable && currentStackSize > 1) {
+            sb.append(String.format(" (x%d)", currentStackSize));
+        }
+        sb.append(String.format(" | Lvl %-2d | %4d cr | %.1f kg",
+                levelRequired, value, weight));
+        if (durability < maxDurability) {
+            sb.append(String.format(" | %d%%", (durability * 100) / maxDurability));
+        }
+        return sb.toString();
+    }
 }
 

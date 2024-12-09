@@ -1,10 +1,9 @@
 package com.mudgame.entities;
 
-import java.util.Optional;
-import java.util.UUID;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.Optional;
+import java.util.UUID;
 
 public class Player {
     private final UUID id;
@@ -14,7 +13,7 @@ public class Player {
     private Race race;
     private CharacterClass characterClass;
     private int credits;
-    private String roomName;  // Changed from currentRoomId
+    private String roomName;
     @JsonIgnore
     private Room currentRoom;
     private int level;
@@ -26,6 +25,7 @@ public class Player {
     private long lastSeen;
     private Inventory inventory;
     private Equipment equipment;
+    private String specialization;
 
     // Constructor for new character creation
     public Player(
@@ -52,6 +52,7 @@ public class Player {
         this.lastSeen = System.currentTimeMillis();
         this.inventory = inventory;
         this.equipment = equipment;
+        this.specialization = null;
     }
 
     // Constructor for loading existing character
@@ -65,13 +66,14 @@ public class Player {
             @JsonProperty("inventory") Inventory inventory,
             @JsonProperty("equipment") Equipment equipment,
             @JsonProperty("credits") int credits,
-            @JsonProperty("room_name") String roomName,  // Updated to match DB column
+            @JsonProperty("room_name") String roomName,
             @JsonProperty("level") int level,
             @JsonProperty("health") int health,
             @JsonProperty("maxHealth") int maxHealth,
             @JsonProperty("energy") int energy,
             @JsonProperty("maxEnergy") int maxEnergy,
-            @JsonProperty("lastSeen") long lastSeen) {
+            @JsonProperty("lastSeen") long lastSeen,
+            @JsonProperty("specialization") String specialization) {
         this.id = id;
         this.ownerId = ownerId;
         this.firstName = firstName;
@@ -89,6 +91,7 @@ public class Player {
         this.lastSeen = lastSeen;
         this.inventory = inventory != null ? inventory : new Inventory(100.0, 20);
         this.equipment = equipment != null ? equipment : new Equipment(this);
+        this.specialization = specialization;
     }
 
     // Getters
@@ -101,7 +104,7 @@ public class Player {
     public CharacterClass getCharacterClass() { return characterClass; }
     public int getCredits() { return credits; }
 
-    @JsonProperty("room_name")  // Match the database column name
+    @JsonProperty("room_name")
     public String getRoomName() { return roomName; }
 
     @JsonIgnore
@@ -117,6 +120,9 @@ public class Player {
     public Inventory getInventory() { return inventory; }
     public Equipment getEquipment() { return equipment; }
 
+    @JsonProperty("specialization")
+    public String getSpecialization() { return specialization; }
+
     // Setters
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
@@ -124,7 +130,7 @@ public class Player {
     public void setEquipment(Equipment equipment) { this.equipment = equipment; }
     public void setCredits(int credits) { this.credits = credits; }
 
-    @JsonProperty("room_name")  // Match the database column name
+    @JsonProperty("room_name")
     public void setRoomName(String roomName) { this.roomName = roomName; }
 
     public void setCurrentRoom(Room room) {
@@ -165,6 +171,35 @@ public class Player {
         }
     }
 
+    public void setSpecialization(String specialization) {
+        this.specialization = specialization;
+    }
+
+    // Game-related methods
+    public void heal(int amount) {
+        setHealth(health + amount);
+    }
+
+    public void damage(int amount) {
+        setHealth(health - amount);
+    }
+
+    public void restoreEnergy(int amount) {
+        setEnergy(energy + amount);
+    }
+
+    public void useEnergy(int amount) {
+        setEnergy(energy - amount);
+    }
+
+    public boolean isDead() {
+        return health <= 0;
+    }
+
+    public boolean hasEnoughEnergy(int amount) {
+        return energy >= amount;
+    }
+
     // Inventory management methods
     public InventoryResult pickupItem(Item item) {
         return inventory.addItem(item);
@@ -199,31 +234,6 @@ public class Player {
         }
 
         return equipment.unequipItem(slot);
-    }
-
-    // Game-related methods
-    public void heal(int amount) {
-        setHealth(health + amount);
-    }
-
-    public void damage(int amount) {
-        setHealth(health - amount);
-    }
-
-    public void restoreEnergy(int amount) {
-        setEnergy(energy + amount);
-    }
-
-    public void useEnergy(int amount) {
-        setEnergy(energy - amount);
-    }
-
-    public boolean isDead() {
-        return health <= 0;
-    }
-
-    public boolean hasEnoughEnergy(int amount) {
-        return energy >= amount;
     }
 
     @Override

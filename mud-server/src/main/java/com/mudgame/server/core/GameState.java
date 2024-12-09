@@ -138,7 +138,8 @@ public class GameState {
                     100,
                     100,
                     100,
-                    System.currentTimeMillis()
+                    System.currentTimeMillis(),
+                    null
             );
 
             players.put(id, newPlayer);

@@ -51,8 +51,8 @@ public interface MoveCommand extends GameCommand {
 
             return CommandResult.builder()
                     .success(true)
-                    .privateMessage(destinationRoom.getFullDescription())
                     .roomMessage(player.getFullName() + moveMessage)
+                    .privateMessage(destinationRoom.getFullDescription())
                     .build();
 
         } catch (IllegalArgumentException e) {

@@ -133,7 +133,7 @@ public class Inventory {
 
     public String getInventoryDisplay() {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Inventory (%d/%d slots, %.1f/%.1f kg):\n",
+        sb.append(String.format("Inventory (%d/%d slots, %.1f/%.1f kg):\n\n",
                 usedSlots, maxSlots, currentWeight, maxWeight));
 
         if (items.isEmpty()) {
@@ -144,10 +144,11 @@ public class Inventory {
                     .collect(Collectors.groupingBy(item -> item.getItem().getType()));
 
             groupedItems.forEach((type, itemList) -> {
-                sb.append(String.format("\n%s:\n", type));
+                sb.append(String.format("%s:\n", type));
                 itemList.forEach(item ->
-                        sb.append(String.format("  %s\n", item.toString()))
+                        sb.append("  ").append(item.getItem().getDetailedDisplay()).append("\n")
                 );
+                sb.append("\n");
             });
         }
 

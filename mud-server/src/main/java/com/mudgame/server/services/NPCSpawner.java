@@ -2,11 +2,22 @@ package com.mudgame.server.services;
 
 import com.mudgame.entities.*;
 import com.mudgame.entities.enemies.SecurityBotNPC;
+import com.mudgame.entities.merchants.MerchantNPC;
 import com.mudgame.entities.merchants.NeoTokyoWeaponShopMerchant;
 import com.mudgame.events.EventListener;
-import java.util.*;
+
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 public class NPCSpawner {
     private final GameMap gameMap;
@@ -68,8 +79,21 @@ public class NPCSpawner {
         npcTypes.values().forEach(type -> {
             try {
                 SpawnableNPC.SpawnConfiguration config = type.getSpawnConfiguration();
-                int count = random.nextInt(config.getMaxInstances() + 1);
 
+                // For merchants, spawn exactly one instance
+                if (type instanceof MerchantNPC) {
+                    NPC spawned = spawnNPC(config.getNpcId(), config.getMinLevel());
+                    if (spawned != null) {
+                        System.out.printf("Spawned merchant %s (Level %d) in %s\n",
+                                spawned.getName(),
+                                spawned.getLevel(),
+                                spawned.getCurrentRoom().getName());
+                    }
+                    return;
+                }
+
+                // For other NPCs, use random count as before
+                int count = random.nextInt(config.getMaxInstances() + 1);
                 System.out.printf("Spawning %d %s(s)...\n", count, config.getNpcId());
 
                 for (int i = 0; i < count; i++) {
@@ -196,6 +220,12 @@ public class NPCSpawner {
         npcTypes.values().forEach(type -> {
             try {
                 SpawnableNPC.SpawnConfiguration config = type.getSpawnConfiguration();
+
+                // Skip respawning for merchant NPCs
+                if (type instanceof MerchantNPC) {
+                    return;
+                }
+
                 long currentCount = countActiveNPCsByType(config.getNpcId());
 
                 if (currentCount < config.getMaxInstances() &&

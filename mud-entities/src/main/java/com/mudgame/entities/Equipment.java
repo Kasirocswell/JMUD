@@ -1,5 +1,6 @@
 package com.mudgame.entities;
 
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +16,10 @@ public class Equipment {
 
     public Optional<Item> getEquippedItem(EquipmentSlot slot) {
         return Optional.ofNullable(equipped.get(slot));
+    }
+
+    public Map<EquipmentSlot, Item> getEquippedItems() {
+        return Collections.unmodifiableMap(equipped);
     }
 
     public InventoryResult equipItem(Item item) {
@@ -50,11 +55,14 @@ public class Equipment {
         StringBuilder sb = new StringBuilder("Equipment:\n");
 
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            sb.append(String.format("%s: %s\n",
-                    slot.toString(),
-                    equipped.containsKey(slot)
-                            ? equipped.get(slot).getName()
-                            : "Empty"));
+            sb.append(String.format("%-10s: ", slot.toString()));
+            Optional<Item> equippedItem = getEquippedItem(slot);
+            if (equippedItem.isPresent()) {
+                sb.append(equippedItem.get().getDetailedDisplay());
+            } else {
+                sb.append("Empty");
+            }
+            sb.append("\n");
         }
 
         return sb.toString();

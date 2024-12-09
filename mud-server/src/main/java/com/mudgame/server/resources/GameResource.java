@@ -4,6 +4,7 @@ import com.mudgame.api.commands.CommandResult;
 import com.mudgame.api.commands.GameCommand;
 import com.mudgame.entities.Attributes;
 import com.mudgame.entities.CharacterClass;
+import com.mudgame.entities.ClassSpecialization;
 import com.mudgame.entities.GameMap;
 import com.mudgame.entities.Player;
 import com.mudgame.entities.Race;
@@ -23,6 +24,8 @@ import jakarta.ws.rs.core.Response;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -103,13 +106,51 @@ public class GameResource {
     @GET
     @Path("/characters/get/{characterId}")
     public Response getCharacter(@PathParam("characterId") UUID characterId) {
-        Player player = gameState.getPlayer(characterId);
-        if (player != null) {
-            return Response.ok(player).build();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT c.*, " +
+                             "c.first_name, c.last_name, c.race, c.class, c.credits, " +
+                             "c.room_name, c.level, c.health, c.max_health, " +
+                             "c.energy, c.max_energy, c.last_seen, c.specialization, " +
+                             "c.owner_id " +
+                             "FROM character c WHERE c.id = ?")) {
+
+            stmt.setObject(1, characterId);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                Player player = new Player(
+                        characterId,
+                        UUID.fromString(rs.getString("owner_id")),
+                        rs.getString("first_name"),
+                        rs.getString("last_name"),
+                        Race.valueOf(rs.getString("race")),
+                        CharacterClass.valueOf(rs.getString("class")),
+                        null,  // inventory will be loaded separately
+                        null,  // equipment will be loaded separately
+                        rs.getInt("credits"),
+                        rs.getString("room_name"),
+                        rs.getInt("level"),
+                        rs.getInt("health"),
+                        rs.getInt("max_health"),
+                        rs.getInt("energy"),
+                        rs.getInt("max_energy"),
+                        rs.getLong("last_seen"),
+                        rs.getString("specialization")  // Load specialization
+                );
+
+                return Response.ok(player).build();
+            }
+
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Character not found"))
+                    .build();
+
+        } catch (SQLException e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new ErrorResponse("Database error: " + e.getMessage()))
+                    .build();
         }
-        return Response.status(Response.Status.NOT_FOUND)
-                .entity(new ErrorResponse("Character not found"))
-                .build();
     }
 
     @POST
@@ -199,6 +240,28 @@ public class GameResource {
         } catch (Exception e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorResponse(e.getMessage()))
+                    .build();
+        }
+    }
+
+    @DELETE
+    @Path("/characters/{characterId}")
+    public Response deleteCharacter(@PathParam("characterId") UUID characterId) {
+        try {
+            Player player = gameState.getPlayer(characterId);
+            if (player == null) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity(new ErrorResponse("Character not found"))
+                        .build();
+            }
+
+            // Remove from game state
+            gameState.unloadPlayer(characterId);
+
+            return Response.ok().build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(new ErrorResponse("Error removing character from game state: " + e.getMessage()))
                     .build();
         }
     }
