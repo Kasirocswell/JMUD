@@ -86,7 +86,6 @@ public class NeoTokyoWeaponShopMerchant extends MerchantNPC implements Spawnable
 
     @Override
     public String interact(Player player, String action) {
-        // First check if it's a basic merchant action
         String[] parts = action.toLowerCase().split("\\s+", 2);
         String command = parts[0];
 

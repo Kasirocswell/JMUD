@@ -5,7 +5,6 @@ import com.mudgame.events.EventListener;
 import java.util.*;
 
 public class SpecializationMasterNPC extends NPC implements SpawnableNPC {
-    private final EventListener eventListener;
     private static final int SPECIALIZATION_LEVEL = 20;
 
     public SpecializationMasterNPC(int level, EventListener eventListener) {
@@ -15,9 +14,9 @@ public class SpecializationMasterNPC extends NPC implements SpawnableNPC {
                 NPCType.QUEST,
                 level,
                 100,
-                false
+                false,
+                eventListener
         );
-        this.eventListener = eventListener;
         initializeResponses();
     }
 
@@ -121,25 +120,26 @@ public class SpecializationMasterNPC extends NPC implements SpawnableNPC {
         player.setSpecialization(spec.get().getName());
         broadcastToRoom(String.format("%s has chosen the path of the %s!",
                 player.getFullName(), spec.get().getName()));
+
         return String.format("Your path is chosen. Walk proudly as a %s.\n\n%s",
                 spec.get().getName(), spec.get().getDescription());
     }
 
-    private void broadcastToRoom(String message) {
-        Room currentRoom = getCurrentRoom();
-        if (currentRoom != null && eventListener != null) {
-            eventListener.onEvent("room", currentRoom.getName(), message);
-        }
-    }
-
     @Override
     public void onTick() {
-        // No tick behavior needed for this NPC
+        // Specialization masters don't need tick behavior
     }
 
     @Override
     public void onDeath(Player killer) {
         // Specialization masters cannot be killed
+    }
+
+    protected void broadcastToRoom(String message) {
+        Room currentRoom = getCurrentRoom();
+        if (currentRoom != null && eventListener != null) {
+            eventListener.onEvent("room", currentRoom.getName(), message);
+        }
     }
 
     @Override

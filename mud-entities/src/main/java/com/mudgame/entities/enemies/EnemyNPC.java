@@ -5,6 +5,7 @@ import com.mudgame.entities.NPCState;
 import com.mudgame.entities.NPCType;
 import com.mudgame.entities.Player;
 import com.mudgame.entities.Room;
+import com.mudgame.events.EventListener;
 
 import java.util.Random;
 
@@ -15,8 +16,8 @@ public class EnemyNPC extends NPC {
     private final Random random = new Random();
 
     public EnemyNPC(String name, String description, int level,
-                    int maxHealth, int attackPower, int attackSpeed) {
-        super(name, description, NPCType.ENEMY, level, maxHealth, true);
+                    int maxHealth, int attackPower, int attackSpeed, EventListener eventListener) {
+        super(name, description, NPCType.ENEMY, level, maxHealth, true, eventListener);
         this.attackPower = attackPower;
         this.attackSpeed = attackSpeed;
         this.ticksSinceLastAttack = 0;
@@ -61,7 +62,7 @@ public class EnemyNPC extends NPC {
         // Broadcast message to room
         String message = String.format("%s attacks %s for %d damage!",
                 getName(), player.getFullName(), damage);
-        // TODO: Add method to broadcast message to room
+        broadcastToRoom(message);
     }
 
     @Override
@@ -82,10 +83,9 @@ public class EnemyNPC extends NPC {
         int credits = 10 + random.nextInt(level * 10);
         killer.setCredits(killer.getCredits() + credits);
 
-        // TODO: Add proper loot tables and drop system
         String message = String.format("%s has been defeated! You gain %d credits.",
                 getName(), credits);
-        // TODO: Broadcast death message to room
+        broadcastToRoom(message);
     }
 
     // Getters and setters for combat stats
@@ -93,4 +93,11 @@ public class EnemyNPC extends NPC {
     public void setAttackPower(int attackPower) { this.attackPower = attackPower; }
     public int getAttackSpeed() { return attackSpeed; }
     public void setAttackSpeed(int attackSpeed) { this.attackSpeed = attackSpeed; }
+
+    protected void broadcastToRoom(String message) {
+        Room currentRoom = getCurrentRoom();
+        if (currentRoom != null) {
+            eventListener.onEvent("room", currentRoom.getName(), message);
+        }
+    }
 }

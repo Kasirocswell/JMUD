@@ -2,11 +2,9 @@ package com.mudgame.entities;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
-public class Player {
-    private final UUID id;
+public class Player extends CombatEntity {
     private final UUID ownerId;
     private String firstName;
     private String lastName;
@@ -16,9 +14,6 @@ public class Player {
     private String roomName;
     @JsonIgnore
     private Room currentRoom;
-    private int level;
-    private int health;
-    private int maxHealth;
     private int energy;
     private int maxEnergy;
     private boolean isOnline;
@@ -36,16 +31,13 @@ public class Player {
             @JsonProperty("characterClass") CharacterClass characterClass,
             Inventory inventory,
             Equipment equipment) {
-        this.id = UUID.randomUUID();
+        super(UUID.randomUUID(), firstName, 1, 100);
         this.ownerId = ownerId;
         this.firstName = firstName;
         this.lastName = lastName;
         this.race = race;
         this.characterClass = characterClass;
         this.credits = 100;
-        this.level = 1;
-        this.health = 100;
-        this.maxHealth = 100;
         this.energy = 100;
         this.maxEnergy = 100;
         this.isOnline = false;
@@ -53,6 +45,8 @@ public class Player {
         this.inventory = inventory;
         this.equipment = equipment;
         this.specialization = null;
+
+        initializeAttributes();
     }
 
     // Constructor for loading existing character
@@ -74,7 +68,7 @@ public class Player {
             @JsonProperty("maxEnergy") int maxEnergy,
             @JsonProperty("lastSeen") long lastSeen,
             @JsonProperty("specialization") String specialization) {
-        this.id = id;
+        super(id, firstName, level, maxHealth);
         this.ownerId = ownerId;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -82,9 +76,7 @@ public class Player {
         this.characterClass = characterClass;
         this.credits = credits;
         this.roomName = roomName;
-        this.level = level;
         this.health = health;
-        this.maxHealth = maxHealth;
         this.energy = energy;
         this.maxEnergy = maxEnergy;
         this.isOnline = false;
@@ -92,43 +84,140 @@ public class Player {
         this.inventory = inventory != null ? inventory : new Inventory(100.0, 20);
         this.equipment = equipment != null ? equipment : new Equipment(this);
         this.specialization = specialization;
+
+        initializeAttributes();
     }
 
-    // Getters
-    public UUID getId() { return id; }
-    public UUID getOwnerId() { return ownerId; }
+    private void initializeAttributes() {
+        // Set base attributes based on race and class
+        setBaseAttributes();
+        // Apply racial bonuses
+        applyRacialBonuses();
+        // Apply class bonuses
+        applyClassBonuses();
+        // Update combat-related stats
+        updateCombatStats();
+    }
+
+    private void setBaseAttributes() {
+        for (Attributes attr : Attributes.values()) {
+            attributes.put(attr, 10); // Base value of 10 for all attributes
+        }
+    }
+
+    private void applyRacialBonuses() {
+        switch (race) {
+            case HUMAN:
+                // Humans get +1 to all attributes
+                attributes.replaceAll((k, v) -> v + 1);
+                break;
+            case DRACONIAN:
+                // Draconians get +2 Strength, +2 Constitution, -1 Agility
+                attributes.merge(Attributes.STRENGTH, 2, Integer::sum);
+                attributes.merge(Attributes.CONSTITUTION, 2, Integer::sum);
+                attributes.merge(Attributes.AGILITY, -1, Integer::sum);
+                break;
+            case SYNTH:
+                // Synths get +2 Intelligence, +2 Speed, -1 Charisma
+                attributes.merge(Attributes.INTELLIGENCE, 2, Integer::sum);
+                attributes.merge(Attributes.SPEED, 2, Integer::sum);
+                attributes.merge(Attributes.CHARISMA, -1, Integer::sum);
+                break;
+            // Add other racial bonuses
+        }
+    }
+
+    private void applyClassBonuses() {
+        switch (characterClass) {
+            case SOLDIER:
+                attributes.merge(Attributes.STRENGTH, 2, Integer::sum);
+                attributes.merge(Attributes.CONSTITUTION, 2, Integer::sum);
+                break;
+            case HACKER:
+                attributes.merge(Attributes.INTELLIGENCE, 2, Integer::sum);
+                attributes.merge(Attributes.PERCEPTION, 2, Integer::sum);
+                break;
+            // Add other class bonuses
+        }
+    }
+
+    private void updateCombatStats() {
+        // Update attack speed based on Speed attribute
+        combatState.updateAttackCooldown(attributes.get(Attributes.SPEED));
+
+        // Update max health based on Constitution
+        int constitutionBonus = (attributes.get(Attributes.CONSTITUTION) - 10) * 5;
+        this.maxHealth = 100 + constitutionBonus + (level * 10);
+        this.health = Math.min(health, maxHealth);
+    }
+
+    @Override
+    protected void onDeath() {
+        // Calculate credit loss (10% of current credits)
+        int creditLoss = (int)(credits * 0.10);
+        credits -= creditLoss;
+
+        // Exit combat
+        combatState.exitCombat();
+
+        // Notify room of death
+        if (currentRoom != null) {
+            // You would need to implement the event system to broadcast this message
+            String deathMessage = String.format("%s has been defeated!", getFullName());
+            // Broadcast death message to room
+        }
+    }
+
+    @Override
+    protected Optional<Item> getEquippedWeapon() {
+        return equipment.getEquippedItem(EquipmentSlot.MAIN_HAND);
+    }
+
+    @Override
+    protected Optional<Item> getEquippedItem(EquipmentSlot slot) {
+        return equipment.getEquippedItem(slot);
+    }
+
+    @Override
+    public Room getCurrentRoom() {
+        return currentRoom;
+    }
+
+    // Additional Player-specific methods
     public String getFirstName() { return firstName; }
     public String getLastName() { return lastName; }
     public String getFullName() { return firstName + (lastName != null ? " " + lastName : ""); }
+    public UUID getOwnerId() { return ownerId; }
     public Race getRace() { return race; }
     public CharacterClass getCharacterClass() { return characterClass; }
     public int getCredits() { return credits; }
-
-    @JsonProperty("room_name")
-    public String getRoomName() { return roomName; }
-
-    @JsonIgnore
-    public Room getCurrentRoom() { return currentRoom; }
-
-    public int getLevel() { return level; }
-    public int getHealth() { return health; }
-    public int getMaxHealth() { return maxHealth; }
     public int getEnergy() { return energy; }
     public int getMaxEnergy() { return maxEnergy; }
     public boolean isOnline() { return isOnline; }
     public long getLastSeen() { return lastSeen; }
     public Inventory getInventory() { return inventory; }
     public Equipment getEquipment() { return equipment; }
-
-    @JsonProperty("specialization")
     public String getSpecialization() { return specialization; }
+
+    @JsonProperty("room_name")
+    public String getRoomName() { return roomName; }
 
     // Setters
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public void setLastName(String lastName) { this.lastName = lastName; }
+    public void setCredits(int credits) { this.credits = credits; }
+    public void setEnergy(int energy) { this.energy = Math.min(maxEnergy, Math.max(0, energy)); }
+    public void setMaxEnergy(int maxEnergy) {
+        this.maxEnergy = maxEnergy;
+        if (energy > maxEnergy) energy = maxEnergy;
+    }
+    public void setOnline(boolean online) {
+        this.isOnline = online;
+        if (!online) this.lastSeen = System.currentTimeMillis();
+    }
+    public void setSpecialization(String specialization) { this.specialization = specialization; }
     public void setInventory(Inventory inventory) { this.inventory = inventory; }
     public void setEquipment(Equipment equipment) { this.equipment = equipment; }
-    public void setCredits(int credits) { this.credits = credits; }
 
     @JsonProperty("room_name")
     public void setRoomName(String roomName) { this.roomName = roomName; }
@@ -140,75 +229,20 @@ public class Player {
         }
     }
 
-    public void setLevel(int level) { this.level = level; }
-
-    public void setHealth(int health) {
-        this.health = Math.min(maxHealth, Math.max(0, health));
-    }
-
-    public void setMaxHealth(int maxHealth) {
-        this.maxHealth = maxHealth;
-        if (health > maxHealth) {
-            health = maxHealth;
-        }
-    }
-
-    public void setEnergy(int energy) {
-        this.energy = Math.min(maxEnergy, Math.max(0, energy));
-    }
-
-    public void setMaxEnergy(int maxEnergy) {
-        this.maxEnergy = maxEnergy;
-        if (energy > maxEnergy) {
-            energy = maxEnergy;
-        }
-    }
-
-    public void setOnline(boolean online) {
-        this.isOnline = online;
-        if (!online) {
-            this.lastSeen = System.currentTimeMillis();
-        }
-    }
-
-    public void setSpecialization(String specialization) {
-        this.specialization = specialization;
-    }
-
-    // Game-related methods
-    public void heal(int amount) {
-        setHealth(health + amount);
-    }
-
-    public void damage(int amount) {
-        setHealth(health - amount);
+    // Combat-related methods
+    public void useEnergy(int amount) {
+        setEnergy(energy - amount);
     }
 
     public void restoreEnergy(int amount) {
         setEnergy(energy + amount);
     }
 
-    public void useEnergy(int amount) {
-        setEnergy(energy - amount);
-    }
-
-    public boolean isDead() {
-        return health <= 0;
-    }
-
     public boolean hasEnoughEnergy(int amount) {
         return energy >= amount;
     }
 
-    // Inventory management methods
-    public InventoryResult pickupItem(Item item) {
-        return inventory.addItem(item);
-    }
-
-    public InventoryResult dropItem(UUID itemId, int amount) {
-        return inventory.removeItem(itemId, amount);
-    }
-
+    // Equipment methods
     public InventoryResult equipItem(Item item) {
         Optional<InventoryItem> invItem = inventory.getItem(item.getId());
         if (invItem.isEmpty()) {
@@ -236,24 +270,50 @@ public class Player {
         return equipment.unequipItem(slot);
     }
 
-    @Override
-    public String toString() {
-        return String.format("%s %s - Level %d %s %s (HP: %d/%d, EP: %d/%d) [%s]",
-                firstName, lastName, level, race, characterClass,
-                health, maxHealth, energy, maxEnergy,
-                isOnline ? "Online" : "Offline");
+    // Basic inventory manipulation
+    public InventoryResult pickupItem(Item item) {
+        return inventory.addItem(item);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Player player = (Player) o;
-        return id.equals(player.id);
+    public InventoryResult dropItem(Item item) {
+        return inventory.removeItem(item.getId(), item.getCurrentStackSize());
     }
 
-    @Override
-    public int hashCode() {
-        return id.hashCode();
+    public InventoryResult dropItem(UUID itemId, int amount) {
+        return inventory.removeItem(itemId, amount);
+    }
+
+    // Helper methods for finding items
+    public Optional<InventoryItem> findItem(String itemName) {
+        return inventory.getItems().stream()
+                .filter(item -> item.getItem().getName().toLowerCase().contains(itemName.toLowerCase()))
+                .findFirst();
+    }
+
+    public Optional<InventoryItem> findItemById(UUID itemId) {
+        return inventory.getItem(itemId);
+    }
+
+    // Quantity checking
+    public boolean hasItem(UUID itemId) {
+        return inventory.getItem(itemId).isPresent();
+    }
+
+    public boolean hasItem(String itemName) {
+        return findItem(itemName).isPresent();
+    }
+
+    public boolean hasItems(UUID itemId, int amount) {
+        Optional<InventoryItem> item = inventory.getItem(itemId);
+        return item.map(inventoryItem -> inventoryItem.getCurrentStackSize() >= amount).orElse(false);
+    }
+
+    // Weight and space checking
+    public boolean canCarryMore(double weight) {
+        return inventory.getRemainingWeight() >= weight;
+    }
+
+    public boolean hasInventorySpace() {
+        return inventory.getRemainingSlots() > 0;
     }
 }

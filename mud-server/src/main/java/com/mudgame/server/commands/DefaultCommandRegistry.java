@@ -1,12 +1,15 @@
 package com.mudgame.server.commands;
 
-
+import com.mudgame.api.commands.AttackCommand;
+import com.mudgame.api.commands.AutoAttackCommand;
+import com.mudgame.api.commands.CombatCommand;
 import com.mudgame.api.commands.CommandRegistry;
 import com.mudgame.api.commands.CommandResult;
 import com.mudgame.api.commands.DropCommand;
 import com.mudgame.api.commands.EquipCommand;
 import com.mudgame.api.commands.EquipmentCommand;
 import com.mudgame.api.commands.ExamineCommand;
+import com.mudgame.api.commands.FleeCommand;
 import com.mudgame.api.commands.GameCommand;
 import com.mudgame.api.commands.GetCommand;
 import com.mudgame.api.commands.InventoryCommand;
@@ -52,6 +55,28 @@ public class DefaultCommandRegistry implements CommandRegistry {
 
         // Register Talk Command
         registerCommand(new TalkCommand() {});
+
+        // Register Combat Commands
+        registerCommand(new AttackCommand() {});
+        registerCommand(new GameCommand() {  // Kill alias for attack
+            @Override
+            public CommandResult execute(Player player, String[] args) {
+                return getCommand("attack").get().execute(player, args);
+            }
+
+            @Override
+            public String getHelp() {
+                return "kill <target> - Alias for 'attack'";
+            }
+
+            @Override
+            public String getName() {
+                return "kill";
+            }
+        });
+        registerCommand(new FleeCommand() {});
+        registerCommand(new CombatCommand() {});
+        registerCommand(new AutoAttackCommand() {});
 
         // Register help command
         registerCommand(new GameCommand() {

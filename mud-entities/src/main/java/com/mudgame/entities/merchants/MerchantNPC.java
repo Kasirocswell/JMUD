@@ -7,12 +7,10 @@ import java.util.*;
 public abstract class MerchantNPC extends NPC {
     protected final Map<UUID, Item> inventory = new HashMap<>();
     protected final Random random = new Random();
-    protected final EventListener eventListener;
 
     public MerchantNPC(String name, String description, int level,
                        int maxHealth, EventListener eventListener) {
-        super(name, description, NPCType.MERCHANT, level, maxHealth, false);
-        this.eventListener = eventListener;
+        super(name, description, NPCType.MERCHANT, level, maxHealth, false, eventListener);
         initializeBaseResponses();
     }
 

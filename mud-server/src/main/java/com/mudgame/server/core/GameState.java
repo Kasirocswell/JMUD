@@ -49,12 +49,76 @@ public class GameState {
         return dataSource;
     }
 
+    private String generateHealthStatus(CombatEntity target) {
+        int healthPercent = (target.getHealth() * 100) / target.getMaxHealth();
+
+        if (healthPercent <= 25) {
+            return String.format("%s is critically wounded! (%d/%d HP)",
+                    target.getName(), target.getHealth(), target.getMaxHealth());
+        } else if (healthPercent <= 50) {
+            return String.format("%s is badly hurt. (%d/%d HP)",
+                    target.getName(), target.getHealth(), target.getMaxHealth());
+        }
+
+        return ""; // Only show status for significant health loss
+    }
+
     // NPC Management Methods
     public void tickNPCs() {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastNPCTick >= NPC_TICK_INTERVAL) {
+            // Process NPCs as before
             npcSpawner.getActiveNPCs().forEach(NPC::onTick);
             npcSpawner.handleRespawns();
+
+            // Process player auto-attacks
+            for (Player player : getOnlinePlayers()) {
+                CombatState combat = player.getCombatState();
+
+                if (combat.isInCombat() && combat.isAutoAttack()) {
+                    UUID targetId = combat.getCurrentTarget();
+                    Room currentRoom = player.getCurrentRoom();
+
+                    if (currentRoom != null && targetId != null) {
+                        Optional<NPC> target = currentRoom.getNPCs().stream()
+                                .filter(npc -> npc.getId().equals(targetId))
+                                .findFirst();
+
+                        if (target.isPresent() && !target.get().isDead()) {
+                            if (combat.canAttack()) {
+                                // Execute the attack and get damage amount
+                                int damageDealt = player.calculateDamage(); // You'll need to modify attack() to return damage
+                                boolean success = player.attack(target.get());
+
+                                if (success) {
+                                    NPC targetNPC = target.get();
+                                    // Generate combat messages with damage
+                                    String privateMsg = String.format("You attack %s for %d damage!",
+                                            targetNPC.getName(), damageDealt);
+                                    String roomMsg = String.format("%s attacks %s for %d damage!",
+                                            player.getFullName(), targetNPC.getName(), damageDealt);
+
+                                    // Check if we should add health status
+                                    String healthStatus = generateHealthStatus(targetNPC);
+                                    if (!healthStatus.isEmpty()) {
+                                        // Broadcast health status as a separate message
+                                        eventListener.onEvent("room", currentRoom.getName(), healthStatus);
+                                    }
+
+                                    // Broadcast attack messages
+                                    if (eventListener != null) {
+                                        eventListener.onEvent("player", player.getId().toString(), privateMsg);
+                                        eventListener.onEvent("room", currentRoom.getName(), roomMsg);
+                                    }
+                                }
+                            }
+                        } else {
+                            combat.exitCombat();
+                        }
+                    }
+                }
+            }
+
             lastNPCTick = currentTime;
         }
     }
